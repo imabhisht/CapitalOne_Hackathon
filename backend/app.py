@@ -1,9 +1,9 @@
 # app.py
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from chainlit.utils import mount_chainlit
-
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import json
 import os
@@ -32,12 +32,12 @@ class ChatResponse(BaseModel):
     content: str
     is_complete: bool = False
 
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.get("/")
-async def root():
-    return {
-        "message": "Streaming Chat API is running",
-        "available_providers": chat_service.get_available_providers()
-    }
+async def serve_index():
+    return FileResponse("static/index.html")
 
 @app.get("/providers")
 async def get_providers():

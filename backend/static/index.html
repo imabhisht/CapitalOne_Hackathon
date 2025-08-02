@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Backend - API Gateway</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/framer-motion/10.16.4/framer-motion.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000000;
+            color: #ffffff;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Animated Background Elements */
+        .bg-elements {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .floating-orb {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            opacity: 0.1;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 200px;
+            height: 200px;
+            top: 10%;
+            left: 80%;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 150px;
+            height: 150px;
+            top: 60%;
+            left: 10%;
+            animation-delay: 2s;
+        }
+
+        .orb-3 {
+            width: 100px;
+            height: 100px;
+            top: 80%;
+            left: 70%;
+            animation-delay: 4s;
+        }
+
+        /* Neural Network Lines */
+        .neural-network {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0.3;
+        }
+
+        .neural-line {
+            position: absolute;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+            animation: neuralPulse 3s linear infinite;
+        }
+
+        .neural-line-1 {
+            width: 300px;
+            top: 20%;
+            left: 10%;
+            transform: rotate(45deg);
+            animation-delay: 0s;
+        }
+
+        .neural-line-2 {
+            width: 250px;
+            top: 40%;
+            right: 15%;
+            transform: rotate(-30deg);
+            animation-delay: 1s;
+        }
+
+        .neural-line-3 {
+            width: 200px;
+            top: 70%;
+            left: 30%;
+            transform: rotate(15deg);
+            animation-delay: 2s;
+        }
+
+        .neural-line-4 {
+            width: 180px;
+            top: 85%;
+            right: 25%;
+            transform: rotate(-60deg);
+            animation-delay: 1.5s;
+        }
+
+        /* DNA Helix */
+        .dna-helix {
+            position: absolute;
+            right: 5%;
+            top: 15%;
+            width: 100px;
+            height: 400px;
+            opacity: 0.15;
+        }
+
+        .dna-strand {
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(to bottom, #3b82f6, #8b5cf6, #3b82f6);
+            animation: dnaRotate 8s linear infinite;
+        }
+
+        .dna-strand-1 {
+            left: 30%;
+            animation-delay: 0s;
+        }
+
+        .dna-strand-2 {
+            right: 30%;
+            animation-delay: 4s;
+        }
+
+        /* Circuit Board Pattern */
+        .circuit-board {
+            position: absolute;
+            left: 5%;
+            bottom: 10%;
+            width: 300px;
+            height: 200px;
+            opacity: 0.1;
+        }
+
+        .circuit-line {
+            position: absolute;
+            background: #3b82f6;
+        }
+
+        .circuit-h1 {
+            width: 150px;
+            height: 2px;
+            top: 20px;
+            left: 0;
+            animation: circuitFlow 4s linear infinite;
+        }
+
+        .circuit-h2 {
+            width: 100px;
+            height: 2px;
+            top: 60px;
+            left: 50px;
+            animation: circuitFlow 4s linear infinite 1s;
+        }
+
+        .circuit-v1 {
+            width: 2px;
+            height: 80px;
+            top: 20px;
+            left: 150px;
+            animation: circuitFlow 4s linear infinite 2s;
+        }
+
+        .circuit-v2 {
+            width: 2px;
+            height: 60px;
+            top: 100px;
+            left: 80px;
+            animation: circuitFlow 4s linear infinite 0.5s;
+        }
+
+        /* Geometric Shapes */
+        .geometric-shape {
+            position: absolute;
+            opacity: 0.08;
+            animation: geometricFloat 10s ease-in-out infinite;
+        }
+
+        .triangle {
+            width: 0;
+            height: 0;
+            border-left: 40px solid transparent;
+            border-right: 40px solid transparent;
+            border-bottom: 70px solid #8b5cf6;
+            top: 30%;
+            left: 5%;
+            animation-delay: 0s;
+        }
+
+        .hexagon {
+            width: 60px;
+            height: 34.64px;
+            background: #3b82f6;
+            position: relative;
+            top: 45%;
+            right: 8%;
+            animation-delay: 3s;
+        }
+
+        .hexagon:before,
+        .hexagon:after {
+            content: "";
+            position: absolute;
+            width: 0;
+            border-left: 30px solid transparent;
+            border-right: 30px solid transparent;
+        }
+
+        .hexagon:before {
+            bottom: 100%;
+            border-bottom: 17.32px solid #3b82f6;
+        }
+
+        .hexagon:after {
+            top: 100%;
+            border-top: 17.32px solid #3b82f6;
+        }
+
+        /* Data Streams */
+        .data-stream {
+            position: absolute;
+            width: 2px;
+            height: 100px;
+            background: linear-gradient(to bottom, transparent, #22c55e, transparent);
+            animation: dataFlow 2s linear infinite;
+        }
+
+        .stream-1 {
+            top: 25%;
+            left: 25%;
+            animation-delay: 0s;
+        }
+
+        .stream-2 {
+            top: 45%;
+            right: 30%;
+            animation-delay: 0.7s;
+        }
+
+        .stream-3 {
+            top: 65%;
+            left: 60%;
+            animation-delay: 1.4s;
+        }
+
+        /* Matrix-style Code Rain */
+        .code-rain {
+            position: absolute;
+            width: 20px;
+            height: 100%;
+            opacity: 0.1;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #22c55e;
+            animation: codeRainFall 5s linear infinite;
+        }
+
+        .rain-1 {
+            left: 15%;
+            animation-delay: 0s;
+        }
+
+        .rain-2 {
+            left: 85%;
+            animation-delay: 2s;
+        }
+
+        .rain-3 {
+            left: 45%;
+            animation-delay: 4s;
+        }
+
+        /* Animated Keyframes */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        @keyframes neuralPulse {
+            0% { transform: scaleX(0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: scaleX(1); opacity: 0; }
+        }
+
+        @keyframes dnaRotate {
+            0% { transform: rotateY(0deg); }
+            100% { transform: rotateY(360deg); }
+        }
+
+        @keyframes circuitFlow {
+            0% { box-shadow: 0 0 0 rgba(59, 130, 246, 0); }
+            50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.5); }
+            100% { box-shadow: 0 0 0 rgba(59, 130, 246, 0); }
+        }
+
+        @keyframes geometricFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-15px) rotate(120deg); }
+            66% { transform: translateY(-10px) rotate(240deg); }
+        }
+
+        @keyframes dataFlow {
+            0% { transform: translateY(-50px); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(150px); opacity: 0; }
+        }
+
+        @keyframes codeRainFall {
+            0% { transform: translateY(-100vh); }
+            100% { transform: translateY(100vh); }
+        }
+
+        /* Grid Pattern */
+        .grid-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.05;
+            background-image: 
+                linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        /* Header */
+        .header {
+            padding: 2rem 0;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: logoRotate 3s linear infinite;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+        }
+
+        @keyframes logoRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .logo-text {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #9ca3af;
+            margin-bottom: 3rem;
+        }
+
+        /* Routes Grid */
+        .routes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+        }
+
+        .route-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .route-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .route-card:hover::before {
+            left: 100%;
+        }
+
+        .route-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1);
+        }
+
+        .route-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .route-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .route-path {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #3b82f6;
+        }
+
+        .route-method {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        .method-get { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .method-post { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .method-put { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+        .method-delete { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+        .route-description {
+            color: #d1d5db;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .route-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .feature-tag {
+            background: rgba(139, 92, 246, 0.2);
+            color: #a78bfa;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        /* Status Indicators */
+        .status-bar {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .status-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: blink 2s infinite;
+        }
+
+        .status-online { background: #22c55e; }
+        .status-processing { background: #f59e0b; }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+
+        /* Floating particles */
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #3b82f6;
+            border-radius: 50%;
+            animation: particleFloat 8s linear infinite;
+        }
+
+        @keyframes particleFloat {
+            0% {
+                transform: translateY(100vh) translateX(0);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .routes-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .container {
+                padding: 0 1rem;
+            }
+            
+            .status-bar {
+                bottom: 1rem;
+                right: 1rem;
+                left: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-pattern"></div>
+    
+    <!-- Background Elements -->
+    <div class="bg-elements">
+        <!-- Floating Orbs -->
+        <div class="floating-orb orb-1"></div>
+        <div class="floating-orb orb-2"></div>
+        <div class="floating-orb orb-3"></div>
+        
+        <!-- Neural Network Lines -->
+        <div class="neural-network">
+            <div class="neural-line neural-line-1"></div>
+            <div class="neural-line neural-line-2"></div>
+            <div class="neural-line neural-line-3"></div>
+            <div class="neural-line neural-line-4"></div>
+        </div>
+        
+        <!-- DNA Helix -->
+        <div class="dna-helix">
+            <div class="dna-strand dna-strand-1"></div>
+            <div class="dna-strand dna-strand-2"></div>
+        </div>
+        
+        <!-- Circuit Board Pattern -->
+        <div class="circuit-board">
+            <div class="circuit-line circuit-h1"></div>
+            <div class="circuit-line circuit-h2"></div>
+            <div class="circuit-line circuit-v1"></div>
+            <div class="circuit-line circuit-v2"></div>
+        </div>
+        
+        <!-- Geometric Shapes -->
+        <div class="geometric-shape triangle"></div>
+        <div class="geometric-shape hexagon"></div>
+        
+        <!-- Data Streams -->
+        <div class="data-stream stream-1"></div>
+        <div class="data-stream stream-2"></div>
+        <div class="data-stream stream-3"></div>
+        
+        <!-- Matrix Code Rain -->
+        <div class="code-rain rain-1">1010101<br>1100110<br>0101010<br>1111000<br>0011101</div>
+        <div class="code-rain rain-2">AI_CORE<br>EXEC_OK<br>DATA_FL<br>NEURAL<br>MATRIX</div>
+        <div class="code-rain rain-3">0x4F2A<br>0xFF3B<br>0x90E1<br>0x7C8D<br>0xB4A6</div>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="white">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <div class="logo-text">AI Agent Backend</div>
+            </div>
+            <p class="subtitle">Intelligent API Gateway • Powered by FastAPI • Ready to Scale</p>
+        </header>
+
+        <div class="routes-grid">
+            <div class="route-card" onclick="window.open('/chat', '_blank')">
+                <div class="route-header">
+                    <div class="route-icon" style="background: rgba(34, 197, 94, 0.2);">💬</div>
+                    <div class="route-path">/chat</div>
+                    <span class="route-method method-post">POST</span>
+                </div>
+                <div class="route-description">
+                    Interactive chat interface with AI assistant. Real-time conversations with context awareness and advanced natural language processing capabilities.
+                </div>
+                <div class="route-features">
+                    <span class="feature-tag">WebSocket</span>
+                    <span class="feature-tag">Streaming</span>
+                    <span class="feature-tag">Context Memory</span>
+                </div>
+            </div>
+
+            <div class="route-card" onclick="window.open('/docs', '_blank')">
+                <div class="route-header">
+                    <div class="route-icon" style="background: rgba(59, 130, 246, 0.2);">📚</div>
+                    <div class="route-path">/docs</div>
+                    <span class="route-method method-get">GET</span>
+                </div>
+                <div class="route-description">
+                    Comprehensive API documentation with interactive Swagger UI. Explore endpoints, test requests, and understand response schemas.
+                </div>
+                <div class="route-features">
+                    <span class="feature-tag">Swagger UI</span>
+                    <span class="feature-tag">Interactive</span>
+                    <span class="feature-tag">OpenAPI 3.0</span>
+                </div>
+            </div>
+
+            <div class="route-card" onclick="window.open('/health', '_blank')">
+                <div class="route-header">
+                    <div class="route-icon" style="background: rgba(34, 197, 94, 0.2);">❤️</div>
+                    <div class="route-path">/health</div>
+                    <span class="route-method method-get">GET</span>
+                </div>
+                <div class="route-description">
+                    System health monitoring endpoint. Check service status, database connectivity, and system performance metrics.
+                </div>
+                <div class="route-features">
+                    <span class="feature-tag">Monitoring</span>
+                    <span class="feature-tag">Metrics</span>
+                    <span class="feature-tag">Status Check</span>
+                </div>
+            </div>
+
+            <div class="route-card" onclick="window.open('/api/v1/agents', '_blank')">
+                <div class="route-header">
+                    <div class="route-icon" style="background: rgba(139, 92, 246, 0.2);">🤖</div>
+                    <div class="route-path">/api/v1/agents</div>
+                    <span class="route-method method-get">GET</span>
+                </div>
+                <div class="route-description">
+                    Manage AI agents and their configurations. Create, update, and deploy intelligent agents with custom capabilities and behaviors.
+                </div>
+                <div class="route-features">
+                    <span class="feature-tag">CRUD Operations</span>
+                    <span class="feature-tag">Agent Management</span>
+                    <span class="feature-tag">Configuration</span>
+                </div>
+            </div>
+
+            <div class="route-card" onclick="window.open('/api/v1/tasks', '_blank')">
+                <div class="route-header">
+                    <div class="route-icon" style="background: rgba(245, 158, 11, 0.2);">⚡</div>
+                    <div class="route-path">/api/v1/tasks</div>
+                    <span class="route-method method-post">POST</span>
+                </div>
+                <div class="route-description">
+                    Execute and manage asynchronous tasks. Queue complex operations, track progress, and retrieve results with advanced scheduling.
+                </div>
+                <div class="route-features">
+                    <span class="feature-tag">Async Processing</span>
+                    <span class="feature-tag">Queue Management</span>
+                    <span class="feature-tag">Progress Tracking</span>
+                </div>
+            </div>
+
+            <div class="route-card" onclick="window.open('/api/v1/analytics', '_blank')">
+                <div class="route-header">
+                    <div class="route-icon" style="background: rgba(168, 85, 247, 0.2);">📊</div>
+                    <div class="route-path">/api/v1/analytics</div>
+                    <span class="route-method method-get">GET</span>
+                </div>
+                <div class="route-description">
+                    Advanced analytics and insights dashboard. Monitor usage patterns, performance metrics, and AI agent effectiveness.
+                </div>
+                <div class="route-features">
+                    <span class="feature-tag">Real-time Data</span>
+                    <span class="feature-tag">Visualizations</span>
+                    <span class="feature-tag">Insights</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="status-dot status-online"></div>
+            <span>API Online</span>
+        </div>
+        <div class="status-item">
+            <div class="status-dot status-processing"></div>
+            <span>Agents Active</span>
+        </div>
+        <div class="status-item">
+            <div class="status-dot status-online"></div>
+            <span>Database Connected</span>
+        </div>
+    </div>
+
+    <script>
+        // Create floating particles with more variety
+        function createParticle() {
+            const particle = document.createElement('div');
+            const types = ['particle', 'binary-particle', 'glow-particle'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            if (type === 'binary-particle') {
+                particle.textContent = Math.random() > 0.5 ? '1' : '0';
+                particle.style.cssText = `
+                    position: absolute;
+                    color: #22c55e;
+                    font-family: 'Courier New', monospace;
+                    font-size: 12px;
+                    opacity: 0.7;
+                    animation: particleFloat 8s linear infinite;
+                `;
+            } else if (type === 'glow-particle') {
+                particle.style.cssText = `
+                    position: absolute;
+                    width: 6px;
+                    height: 6px;
+                    background: #8b5cf6;
+                    border-radius: 50%;
+                    box-shadow: 0 0 10px #8b5cf6;
+                    animation: particleFloat 8s linear infinite;
+                `;
+            } else {
+                particle.className = 'particle';
+            }
+            
+            particle.style.left = Math.random() * window.innerWidth + 'px';
+            particle.style.animationDelay = Math.random() * 2 + 's';
+            document.querySelector('.bg-elements').appendChild(particle);
+
+            setTimeout(() => {
+                particle.remove();
+            }, 8000);
+        }
+
+        // Create particles more frequently
+        setInterval(createParticle, 1000);
+
+        // Add dynamic neural network connections
+        function createNeuralConnection() {
+            const connection = document.createElement('div');
+            connection.style.cssText = `
+                position: absolute;
+                width: ${Math.random() * 200 + 100}px;
+                height: 1px;
+                background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+                top: ${Math.random() * 100}%;
+                left: ${Math.random() * 100}%;
+                transform: rotate(${Math.random() * 360}deg);
+                opacity: 0.2;
+                animation: neuralPulse 4s ease-in-out infinite;
+            `;
+            
+            document.querySelector('.neural-network').appendChild(connection);
+            
+            setTimeout(() => {
+                connection.remove();
+            }, 4000);
+        }
+
+        // Create neural connections periodically
+        setInterval(createNeuralConnection, 3000);
+
+        // Add floating binary code
+        function createBinaryCode() {
+            const binaryElement = document.createElement('div');
+            const binaryString = Array.from({length: 8}, () => Math.random() > 0.5 ? '1' : '0').join('');
+            
+            binaryElement.textContent = binaryString;
+            binaryElement.style.cssText = `
+                position: absolute;
+                color: #22c55e;
+                font-family: 'Courier New', monospace;
+                font-size: 10px;
+                opacity: 0.3;
+                left: ${Math.random() * window.innerWidth}px;
+                top: ${Math.random() * window.innerHeight}px;
+                animation: fadeInOut 6s ease-in-out infinite;
+            `;
+            
+            document.querySelector('.bg-elements').appendChild(binaryElement);
+            
+            setTimeout(() => {
+                binaryElement.remove();
+            }, 6000);
+        }
+
+        // Add CSS for fade animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInOut {
+                0%, 100% { opacity: 0; transform: scale(0.8); }
+                50% { opacity: 0.3; transform: scale(1); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Create binary code periodically
+        setInterval(createBinaryCode, 2000);
+
+        // Add hover effects to route cards
+        document.querySelectorAll('.route-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-10px) scale(1.02)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) scale(1)';
+            });
+        });
+
+        // Animate cards on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Initially hide cards
+        document.querySelectorAll('.route-card').forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(50px)';
+            card.style.transition = `opacity 0.6s ease ${index * 0.1}s, transform 0.6s ease ${index * 0.1}s`;
+            observer.observe(card);
+        });
+
+        // Add some interactive elements
+        document.addEventListener('mousemove', (e) => {
+            const orbs = document.querySelectorAll('.floating-orb');
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+            
+            orbs.forEach((orb, index) => {
+                const speed = (index + 1) * 0.5;
+                orb.style.transform = `translate(${x * speed * 20}px, ${y * speed * 20}px)`;
+            });
+        });
+
+        // Animate status dots
+        document.querySelectorAll('.status-dot').forEach(dot => {
+            setInterval(() => {
+                dot.style.transform = 'scale(1.2)';
+                setTimeout(() => {
+                    dot.style.transform = 'scale(1)';
+                }, 200);
+            }, 2000 + Math.random() * 1000);
+        });
+    </script>
+</body>
+</html>
