@@ -15,7 +15,7 @@ async def set_chat_profiles():
         cl.ChatProfile(
             name="Default",
             markdown_description="Welcome to the custom-branded assistant!",
-            icon="https://your-cdn.com/your-logo.svg",
+            icon="https://raw.githubusercontent.com/imabhisht/CapitalOne_Hackathon/refs/heads/master/backend/public/logo.png",
         )
     ]
 
