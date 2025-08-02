@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+chainlit
+aiohttp
+pydantic
+motor
+pymongo
