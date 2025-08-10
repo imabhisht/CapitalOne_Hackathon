@@ -172,6 +172,12 @@ class MongoService:
     def get_collection(self, collection_name: str):
         """Get a collection from the capital_one database."""
         return self.get_database("capital_one")[collection_name]
+    
+    def is_connected(self) -> bool:
+        """
+        Check if the MongoDB client is connected.
+        """
+        return self._client is not None
 
 # Create a global instance
 mongo_service = MongoService()
