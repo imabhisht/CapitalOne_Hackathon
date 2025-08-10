@@ -6,7 +6,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import chat service
-from chat_service import chat_service
+from src.services.chat_service import chat_service
 
 @cl.set_chat_profiles
 async def set_chat_profiles():
