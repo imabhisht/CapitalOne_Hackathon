@@ -23,7 +23,7 @@ class AgentState(TypedDict):
 
 # Gemini LLM wrapper using OpenAI SDK
 class GeminiLLM:
-    def __init__(self, model="gemini-2.5-flash", api_key=None):
+    def __init__(self, model="gemma-3n-e2b-it", api_key=None):
         """
         Initialize Gemini client using OpenAI SDK format
         

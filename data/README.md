@@ -22,6 +22,11 @@ This directory contains scripts and data files for loading, enriching, and prepa
 	```bash
 	pip install pymongo python-dotenv requests
 	```
+	
+	Or if using the backend environment:
+	```bash
+	cd ../backend && pip install -e .
+	```
 2. **Configure environment variables:**
 	- Copy `.env sample` to `.env` and fill in your MongoDB URL and (optionally) Google Maps API key:
 	  ```
