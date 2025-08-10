@@ -1,4 +1,6 @@
-from pydantic import BaseModel, Optional
+from typing import Optional
+from pydantic import BaseModel
+
 
 class Location(BaseModel):
     longitude: float

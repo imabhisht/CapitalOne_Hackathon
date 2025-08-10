@@ -3,7 +3,6 @@ from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from chainlit.utils import mount_chainlit
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Optional
 from contextlib import asynccontextmanager
 import json
 import os
