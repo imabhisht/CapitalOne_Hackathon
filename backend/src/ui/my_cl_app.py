@@ -19,12 +19,25 @@ async def set_chat_profiles():
         )
     ]
 
+@cl.on_chat_start
+async def start():
+    """Initialize chat session"""
+    # Generate a unique user ID for this session
+    import uuid
+    user_id = f"chainlit_user_{str(uuid.uuid4())[:8]}"
+    cl.user_session.set("user_id", user_id)
+    # Session ID will be set after first message
+
 @cl.on_message
 async def handle_message(message: cl.Message):
     """Handle incoming messages"""
     
     # Get message content
     content = message.content.strip()
+    
+    # Get or create session ID for this user session
+    session_id = cl.user_session.get("chat_session_id")
+    user_id = cl.user_session.get("user_id", "chainlit_user")
     
     # Create response message
     msg = cl.Message(content="")
@@ -36,8 +49,8 @@ async def handle_message(message: cl.Message):
         # Create a ChatRequest object
         request = ChatRequest(
             message=content,
-            user_id="chainlit_user",  # You can make this dynamic based on user session
-            session_id=None,  # Let the service create a new session
+            user_id=user_id,
+            session_id=session_id,  # Use existing session or None for new session
             language_type="en"
         )
         
@@ -49,6 +62,15 @@ async def handle_message(message: cl.Message):
             accumulated_content += content_chunk
             msg.content = accumulated_content
             await msg.update()
+        
+        # After first message, store the session ID for future messages
+        if not session_id:
+            current_session_id = chat_service.get_current_session_id()
+            if current_session_id:
+                cl.user_session.set("chat_session_id", current_session_id)
+                print(f"🔗 Stored session ID for future messages: {current_session_id}")
+        else:
+            print(f"🔄 Using existing session ID: {session_id}")
     
     except Exception as e:
         msg.content = f"❌ **Error:** {str(e)}"

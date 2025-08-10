@@ -26,6 +26,10 @@ agents/
 - Implements conditional edges for tool calling workflow
 - Supports streaming responses and conversation history
 - Handles tool execution with error recovery and state tracking
+- **Tool Call Detection**: Uses regex patterns to extract `TOOL_CALL:` instructions from LLM responses
+- **State Management**: Tracks tool execution state to prevent infinite loops
+- **Gemini Integration**: Works with Gemini LLM via OpenAI SDK compatibility
+- **Enhanced Debugging**: Tool descriptions are logged during initialization for better development visibility
 
 ### Tool Registry (`tools/registry.py`)
 
@@ -63,8 +67,8 @@ The agent is integrated into the chat service and automatically handles tool cal
 from src.agents.langraph_agent import LangGraphAgent
 from src.llm.gemini_llm import GeminiLLM
 
-# Initialize
-llm = GeminiLLM(model="gemini-2.0-flash-exp", api_key=api_key)
+# Initialize Gemini LLM (uses OpenAI SDK format)
+llm = GeminiLLM(model="gemini-2.5-flash", api_key=api_key)
 agent = LangGraphAgent(llm)
 
 # Use streaming
@@ -72,6 +76,17 @@ async for chunk, is_complete in agent.stream_invoke("What's the weather in Barod
     if not is_complete:
         print(chunk, end='')
 ```
+
+### Tool Call Format
+
+The agent uses a specific format for tool calls:
+- `TOOL_CALL: tool_name()` - for tools without parameters
+- `TOOL_CALL: tool_name("parameter")` - for tools with parameters
+
+Examples:
+- `TOOL_CALL: get_location()` - Get location information
+- `TOOL_CALL: get_weather("Baroda, Jamjodhpur")` - Get weather for location
+- `TOOL_CALL: calculate("25 * 4 + 10")` - Perform calculation
 
 ### Adding New Tools
 
@@ -99,6 +114,24 @@ class ToolRegistry:
             # ... existing tools
             "my_new_tool": my_new_tool,
         }
+```
+
+## Debugging & Development
+
+### Tool Debugging
+
+The agent includes enhanced debugging capabilities:
+- Tool descriptions are automatically logged during initialization
+- This helps developers verify which tools are loaded and available
+- Useful for troubleshooting tool registration issues
+
+### Debug Output Example
+
+When the agent initializes, you'll see output like:
+```
+- get_location: Returns location information for Baroda, Jamjodhpur
+- get_weather: Get weather information for a specific location
+- calculate: Safely evaluate mathematical expressions
 ```
 
 ## Testing

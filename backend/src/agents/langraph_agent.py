@@ -69,10 +69,12 @@ class LangGraphAgent:
         """
         try:
             messages = state["messages"]
+            logger.info(f"_call_model received {len(messages)} messages")
             
             # Enhance system message with tool information if not already done
             enhanced_messages = self._ensure_tool_instructions(messages)
             
+            logger.info(f"Sending {len(enhanced_messages)} enhanced messages to LLM")
             response = self.llm.invoke(enhanced_messages)
             
             return {
@@ -259,12 +261,17 @@ After using a tool, I'll provide you with the results and you should give a natu
             system_msg = SystemMessage(content="""You are a helpful AI assistant. You have access to several tools that can help you provide better responses.""")
             messages.append(system_msg)
             
-            # Add conversation history
+            # Add conversation history if provided
             if conversation_history:
+                logger.info(f"Adding {len(conversation_history)} messages from conversation history")
                 messages.extend(conversation_history[-10:])  # Keep last 10 messages
+            else:
+                logger.info("No conversation history provided")
             
             # Add current user message
             messages.append(HumanMessage(content=message))
+            
+            logger.info(f"Total messages being sent to graph: {len(messages)}")
             
             # Create initial state
             initial_state = {

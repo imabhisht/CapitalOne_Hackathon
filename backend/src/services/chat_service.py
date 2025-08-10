@@ -44,26 +44,16 @@ class ChatService:
 5. Calculations and problem-solving
 
 Please be helpful, accurate, and conversational. If you need more information to help the user, ask clarifying questions.
-"""
+"""       
 
     async def _process_message(self, message: str, conversation_history: list = None) -> AsyncGenerator[Tuple[str, bool], None]:
         """
         Core logic to process the message using Gemini LLM and yield response chunks.
         """
         try:
-            # Prepare messages for the LLM
-            messages = [SystemMessage(content=self.system_prompt)]
+            logger.info(f"_process_message called with message: {message}")
+            logger.info(f"_process_message conversation_history length: {len(conversation_history) if conversation_history else 0}")
             
-            # Add conversation history if provided
-            if conversation_history:
-                messages.extend(conversation_history[-10:])  # Keep last 10 messages for context
-            
-            # Add current user message
-            messages.append(HumanMessage(content=message))
-            
-            # Get response from Gemini
-            logger.info(f"Sending message to Gemini: {message}")
-
             # Use LangGraph Agent instead of direct LLM call
             async for chunk, is_complete in self.agent.stream_invoke(message, conversation_history):
                 yield (chunk, is_complete)
@@ -96,29 +86,41 @@ Please be helpful, accurate, and conversational. If you need more information to
         try:
             # Get or create chat session
             chat_session = None
-            conversation_history = []
+            conversation_history = []  # Session-specific conversation history
             
-            if hasattr(request, 'session_id') and request.session_id:
+            if request.session_id:
                 # Try to load existing session
-                chat_session = ChatSession(
-                    user_id=request.user_id,
-                    session_id=request.session_id,
-                    refresh=True
-                )
-                # Get conversation history for context
-                messages = await chat_session.get_messages(refresh=True, limit=10)
-                # Convert to LLM format
-                for msg in messages:
-                    if msg.message_type == "human":
-                        conversation_history.append(HumanMessage(content=msg.content))
-                    elif msg.message_type == "ai":
-                        conversation_history.append(AIMessage(content=msg.content))
+                try:
+                    chat_session = ChatSession(
+                        user_id=request.user_id,
+                        session_id=request.session_id,
+                        refresh=True
+                    )
+                    # Get conversation history for context
+                    messages = await chat_session.get_messages(refresh=True, limit=10)
+                    logger.info(f"Loaded existing session {request.session_id} with {len(messages)} messages")
+                    
+                    # Convert to LLM format
+                    for msg in messages:
+                        if msg.message_type == "human":
+                            conversation_history.append(HumanMessage(content=msg.content))
+                        elif msg.message_type == "ai":
+                            conversation_history.append(AIMessage(content=msg.content))
+                except Exception as e:
+                    logger.warning(f"Could not load session {request.session_id}: {e}. Creating new session.")
+                    # Create new session if loading fails
+                    chat_session = ChatSession(
+                        user_id=request.user_id,
+                        title=f"Chat Session {request.message[:30]}..."
+                    )
+                    logger.info(f"Created new session for user {request.user_id}")
             else:
-                # Create new session
+                # Create new session - this should only happen for the very first message
                 chat_session = ChatSession(
                     user_id=request.user_id,
-                    title=f"Chat Session {request.message[:30]}..."  # Use first 30 chars of message as title
+                    title=f"Chat Session {request.message[:30]}..."
                 )
+                logger.info(f"Created new session for user {request.user_id} (no session_id provided)")
 
             # Store human message immediately
             await chat_session.add_message(
@@ -129,12 +131,19 @@ Please be helpful, accurate, and conversational. If you need more information to
                 sync_to_db=True
             )
 
+            # Store the session ID for potential retrieval
+            self._current_session_id = chat_session.id if chat_session else None
+            
             # Generate AI response with conversation context
             accumulated_response = ""
+            logger.info(f"Conversation history length: {len(conversation_history)}")
+            
+            # send only the last 10 messages to the agent
+            conversation_history = conversation_history[-10:]
+            
             async for chunk, is_complete in self._process_message(request.message, conversation_history):
                 if not is_complete:
                     accumulated_response += chunk
-                
 
                 # Store AI response when streaming is complete
                 if is_complete:
@@ -158,27 +167,9 @@ Please be helpful, accurate, and conversational. If you need more information to
             logger.error(f"Error during streaming response: {e}")
             yield (f"Error: {str(e)}", True)
 
-    # async def generate_complete_response(
-    #     self, 
-    #     message: str, 
-    #     **kwargs
-    # ) -> str:
-    #     """
-    #     Generate complete response by accumulating streaming output.
-    #     """
-    #     if not message.strip():
-    #         return "Error: Empty message received."
-
-    #     try:
-    #         accumulated = ""
-    #         async for chunk, is_complete in self.generate_streaming_response(message, **kwargs):
-    #             if is_complete:
-    #                 break
-    #             accumulated += chunk
-    #         return accumulated.strip()
-    #     except Exception as e:
-    #         logger.error(f"Error during complete response: {e}")
-    #         return f"Service Error: {str(e)}"
+    def get_current_session_id(self) -> str:
+        """Get the current session ID from the last processed request"""
+        return getattr(self, '_current_session_id', None)
 
 
 # Global instance
