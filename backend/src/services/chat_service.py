@@ -6,7 +6,6 @@ import logging
 
 # Models
 from src.models.chat_request import ChatRequest, ChatResponse
-from src.models.chat_session import ChatSession
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -45,7 +44,6 @@ class ChatService:
     ) -> AsyncGenerator[Tuple[str, bool], None]:
         """
         Generate streaming response using the built-in logic.
-        Also handles storing messages to MongoDB.
         
         Yields:
             Tuple[str, bool]: (content_chunk, is_complete)
@@ -55,53 +53,33 @@ class ChatService:
             return
 
         try:
-            # Get or create chat session
-            chat_session = None
-            if hasattr(request, 'session_id') and request.session_id:
-                # Try to load existing session
-                chat_session = ChatSession(
-                    user_id=request.user_id,
-                    session_id=request.session_id,
-                    refresh=True
-                )
-            else:
-                # Create new session
-                chat_session = ChatSession(
-                    user_id=request.user_id,
-                    title=f"Chat Session {request.message[:30]}..."  # Use first 30 chars of message as title
-                )
-
-            # Store human message immediately
-            await chat_session.add_message(
-                content=request.message,
-                message_type="human",
-                language_type=getattr(request, 'language_type', 'en'),
-                metadata=getattr(request, 'metadata', {}),
-                sync_to_db=True
-            )
-
-            # Generate AI response
-            accumulated_response = ""
             async for chunk, is_complete in self._process_message(request.message):
-                if not is_complete:
-                    accumulated_response += chunk
                 yield (chunk, is_complete)
-
-            # Store AI response once streaming is complete
-            if accumulated_response.strip():
-                await chat_session.add_message(
-                    content=accumulated_response.strip(),
-                    message_type="ai",
-                    language_type=getattr(request, 'language_type', 'en'),
-                    metadata={"generated_by": "static_response"},
-                    sync_to_db=True
-                )
-
-            logger.info(f"Messages stored for session: {chat_session.id}")
-
         except Exception as e:
             logger.error(f"Error during streaming response: {e}")
             yield (f"Error: {str(e)}", True)
+
+    # async def generate_complete_response(
+    #     self, 
+    #     message: str, 
+    #     **kwargs
+    # ) -> str:
+    #     """
+    #     Generate complete response by accumulating streaming output.
+    #     """
+    #     if not message.strip():
+    #         return "Error: Empty message received."
+
+    #     try:
+    #         accumulated = ""
+    #         async for chunk, is_complete in self.generate_streaming_response(message, **kwargs):
+    #             if is_complete:
+    #                 break
+    #             accumulated += chunk
+    #         return accumulated.strip()
+    #     except Exception as e:
+    #         logger.error(f"Error during complete response: {e}")
+    #         return f"Service Error: {str(e)}"
 
 
 # Global instance
@@ -112,3 +90,7 @@ async def generate_streaming_response(request: ChatRequest, **kwargs):
     """Convenience function to stream response."""
     async for chunk, is_complete in chat_service.generate_streaming_response(request=request, **kwargs):
         yield chunk, is_complete
+
+# async def generate_complete_response(request: ChatRequest, **kwargs) -> str:
+#     """Convenience function to get full response."""
+#     return await chat_service.generate_complete_response(request=request, **kwargs)
