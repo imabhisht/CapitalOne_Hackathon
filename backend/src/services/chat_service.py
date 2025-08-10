@@ -1,4 +1,5 @@
-# chat_service.py
+# src/services/chat_service.py
+
 import asyncio
 from typing import AsyncGenerator, Tuple
 import logging
@@ -38,7 +39,7 @@ class ChatService:
 
     async def generate_streaming_response(
         self, 
-        message: ChatRequest, 
+        request: ChatRequest, 
         **kwargs
     ) -> AsyncGenerator[Tuple[str, bool], None]:
         """
@@ -47,12 +48,12 @@ class ChatService:
         Yields:
             Tuple[str, bool]: (content_chunk, is_complete)
         """
-        if not message.strip():
+        if not request.message.strip():
             yield ("Error: Empty message received.", True)
             return
 
         try:
-            async for chunk, is_complete in self._process_message(message):
+            async for chunk, is_complete in self._process_message(request.message):
                 yield (chunk, is_complete)
         except Exception as e:
             logger.error(f"Error during streaming response: {e}")

@@ -2,7 +2,7 @@
 
 from src.infrastructure.mongo_service import mongo_service
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, Literal
 
 # LangChain message types
@@ -29,8 +29,8 @@ class ChatMessage:
         self.metadata = metadata or {}
         self.refined_query = refined_query
         self.translated_query = translated_query
-        self.created_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
 
     async def sync_to_db(self) -> bool:
         """
@@ -41,7 +41,7 @@ class ChatMessage:
         """
         try:
             # Update the updated_at timestamp
-            self.updated_at = datetime.utcnow()
+            self.updated_at = datetime.now(timezone.utc)
             
             result = await self.db.update_one(
                 {"_id": self.id},
@@ -168,8 +168,8 @@ class ChatMessage:
             instance.metadata = document.get("metadata", {})
             instance.refined_query = document.get("refined_query")
             instance.translated_query = document.get("translated_query")
-            instance.created_at = document.get("created_at", datetime.utcnow())
-            instance.updated_at = document.get("updated_at", datetime.utcnow())
+            instance.created_at = document.get("created_at", datetime.now(timezone.utc))
+            instance.updated_at = document.get("updated_at", datetime.now(timezone.utc))
             return instance
         
         return None
@@ -201,8 +201,8 @@ class ChatMessage:
             instance.metadata = document.get("metadata", {})
             instance.refined_query = document.get("refined_query")
             instance.translated_query = document.get("translated_query")
-            instance.created_at = document.get("created_at", datetime.utcnow())
-            instance.updated_at = document.get("updated_at", datetime.utcnow())
+            instance.created_at = document.get("created_at", datetime.now(timezone.utc))
+            instance.updated_at = document.get("updated_at", datetime.now(timezone.utc))
             messages.append(instance)
         
         return messages
