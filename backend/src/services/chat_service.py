@@ -11,6 +11,7 @@ from src.models.chat_session import ChatSession
 
 # LLM and Agent imports
 from src.llm.gemini_llm import GeminiLLM
+from src.agents.langraph_agent import LangGraphAgent
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 # Configure logging
@@ -29,6 +30,9 @@ class ChatService:
             model="gemini-2.0-flash-exp",  # Using the latest model
             api_key=os.getenv("GEMINI_API_KEY")
         )
+        
+        # Initialize LangGraph Agent
+        self.agent = LangGraphAgent(self.llm)
         
         # System prompt for the assistant
         self.system_prompt = """You are a helpful AI assistant for CapitalOne. You can help users with:
@@ -59,17 +63,10 @@ Please be helpful, accurate, and conversational. If you need more information to
             
             # Get response from Gemini
             logger.info(f"Sending message to Gemini: {message}")
-            response = self.llm.invoke(messages, temperature=0.7, max_tokens=2000)
-            
-            # Stream the response word by word to simulate streaming
-            response_text = response.content
-            words = response_text.split()
-            
-            for i, word in enumerate(words):
-                yield (word + " ", False)
-                await asyncio.sleep(0.03)  # Simulate streaming delay
-            
-            yield ("", True)  # Signal completion
+
+            # Use LangGraph Agent instead of direct LLM call
+            async for chunk, is_complete in self.agent.stream_invoke(message, conversation_history):
+                yield (chunk, is_complete)
             
         except Exception as e:
             logger.error(f"Error in LLM processing: {e}")
@@ -137,19 +134,25 @@ Please be helpful, accurate, and conversational. If you need more information to
             async for chunk, is_complete in self._process_message(request.message, conversation_history):
                 if not is_complete:
                     accumulated_response += chunk
+                
+
+                # Store AI response when streaming is complete
+                if is_complete:
+                    logger.info(f"Streaming complete. Accumulated response length: {len(accumulated_response)}")
+                    if accumulated_response.strip():
+                        logger.info(f"Saving AI response: '{accumulated_response[:50]}...'")
+                        await chat_session.add_message(
+                            content=accumulated_response.strip(),
+                            message_type="ai",
+                            language_type=getattr(request, 'language_type', 'en'),
+                            metadata={"generated_by": "gemini_llm", "model": "gemini-2.0-flash-exp"},
+                            sync_to_db=True
+                        )
+                        logger.info(f"AI message saved for session: {chat_session.id}")
+                    else:
+                        logger.warning(f"No accumulated response to save")
+
                 yield (chunk, is_complete)
-
-            # Store AI response once streaming is complete
-            if accumulated_response.strip():
-                await chat_session.add_message(
-                    content=accumulated_response.strip(),
-                    message_type="ai",
-                    language_type=getattr(request, 'language_type', 'en'),
-                    metadata={"generated_by": "gemini_llm", "model": "gemini-2.0-flash-exp"},
-                    sync_to_db=True
-                )
-
-            logger.info(f"Messages stored for session: {chat_session.id}")
 
         except Exception as e:
             logger.error(f"Error during streaming response: {e}")

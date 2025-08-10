@@ -1,4 +1,5 @@
-from pymongo import MongoClient, DESCENDING, ASCENDING
+from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import DESCENDING, ASCENDING
 from pymongo.errors import OperationFailure
 from typing import Optional, Dict, List, Tuple
 import logging
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class MongoService:
     _instance: Optional['MongoService'] = None
-    _client: Optional[MongoClient] = None
+    _client: Optional[AsyncIOMotorClient] = None
     
     def __new__(cls) -> 'MongoService':
         if cls._instance is None:
@@ -22,18 +23,18 @@ class MongoService:
         This should be called once during application startup.
         """
         if self._client is None:
-            self._client = MongoClient(connection_string)
+            self._client = AsyncIOMotorClient(connection_string)
             # Create indexes after client initialization
             await self._create_indexes()
 
-    def _get_existing_indexes(self, collection) -> Dict[str, dict]:
+    async def _get_existing_indexes(self, collection) -> Dict[str, dict]:
         """
         Get all existing indexes for a collection.
         Returns a dictionary with index names as keys and index info as values.
         """
         try:
             existing_indexes = {}
-            for index_info in collection.list_indexes():
+            async for index_info in collection.list_indexes():
                 existing_indexes[index_info['name']] = index_info
             return existing_indexes
         except Exception as e:
@@ -88,7 +89,7 @@ class MongoService:
             chat_messages_collection = self.get_collection("chat_messages")
             
             # Get existing indexes
-            existing_indexes = self._get_existing_indexes(chat_messages_collection)
+            existing_indexes = await self._get_existing_indexes(chat_messages_collection)
             logger.info(f"Found {len(existing_indexes)} existing indexes: {list(existing_indexes.keys())}")
             
             # Get required indexes
@@ -107,7 +108,7 @@ class MongoService:
                     try:
                         # Add the name to options
                         options_with_name = {**options, "name": index_name}
-                        chat_messages_collection.create_index(keys, **options_with_name)
+                        await chat_messages_collection.create_index(keys, **options_with_name)
                         logger.info(f"Created index: {index_name}")
                         created_count += 1
                     except OperationFailure as e:
@@ -125,14 +126,14 @@ class MongoService:
             logger.error(f"Error in index creation process: {str(e)}")
             raise
 
-    def verify_indexes(self) -> Dict[str, bool]:
+    async def verify_indexes(self) -> Dict[str, bool]:
         """
         Verify that all required indexes exist.
         Returns a dictionary with index names as keys and existence status as values.
         """
         try:
             chat_messages_collection = self.get_collection("chat_messages")
-            existing_indexes = self._get_existing_indexes(chat_messages_collection)
+            existing_indexes = await self._get_existing_indexes(chat_messages_collection)
             required_indexes = self._define_required_indexes()
             
             verification_result = {}
@@ -144,19 +145,19 @@ class MongoService:
             logger.error(f"Error verifying indexes: {str(e)}")
             return {}
 
-    def get_index_info(self) -> Dict[str, dict]:
+    async def get_index_info(self) -> Dict[str, dict]:
         """
         Get detailed information about all indexes in the chat_messages collection.
         """
         try:
             chat_messages_collection = self.get_collection("chat_messages")
-            return self._get_existing_indexes(chat_messages_collection)
+            return await self._get_existing_indexes(chat_messages_collection)
         except Exception as e:
             logger.error(f"Error getting index info: {str(e)}")
             return {}
 
     @property
-    def client(self) -> MongoClient:
+    def client(self) -> AsyncIOMotorClient:
         """
         Return the MongoDB client.
         Raises an exception if initialize() hasn't been called yet.
