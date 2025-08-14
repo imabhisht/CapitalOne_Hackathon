@@ -5,29 +5,46 @@ A comprehensive AI-powered assistant for agriculture data analysis and insights,
 ## 🚀 Features
 
 - **Multi-Agent System**: LangGraph-powered agents with tool calling capabilities
-- **Gemini LLM Integration**: Google Gemini 2.0 Flash model via OpenAI SDK compatibility
-- **Real-time Chat**: Streaming responses with FastAPI and Chainlit integration
+- **OpenAI-Compatible LLM**: Supports multiple LLM providers (Gemini, OpenAI, Claude, local models) via OpenAI SDK
+- **OpenAI API Compatibility**: Full OpenAI API-compatible endpoints for third-party integrations
+- **Modern Streamlit UI**: Interactive chat interface with real-time streaming, custom styling, and mobile-responsive design
+- **Multiple Chat Interfaces**: 
+  - **Streamlit**: Primary modern chat interface with advanced features
+  - **Open WebUI**: Alternative ChatGPT-like interface with file uploads and multi-user support
+- **Real-time Chat**: Streaming responses with FastAPI integration
 - **Session Management**: Persistent conversation history with automatic session tracking
 - **Agriculture Data**: Comprehensive district-level data for Indian agriculture
 - **Geospatial Queries**: Location-based data analysis with MongoDB geospatial indexes
 - **Tool Integration**: Weather, location, and calculation tools for enhanced responses
 - **RESTful API**: FastAPI backend with health checks and CORS support
+- **Third-Party Integration**: Compatible with Open WebUI and other OpenAI API clients
 
 ## 📁 Project Structure
 
 ```
 ├── backend/                    # Main backend application
 │   ├── src/
-│   │   ├── agents/            # LangGraph agents and tools
-│   │   │   ├── langraph_agent.py      # Main agent implementation
+│   │   ├── agents/            # Multi-agent system and tools
+│   │   │   ├── base_agent.py          # Abstract base class for all agents
+│   │   │   ├── langraph_agent.py      # LangGraph workflow implementation
+│   │   │   ├── intent_gathering_agent.py  # Intent clarification agent
+│   │   │   ├── agent_coordinator.py   # Multi-agent coordination and routing
+│   │   │   ├── organic_farming_agent.py   # Organic farming specialist
+│   │   │   ├── financial_agent.py     # Financial advice specialist
+│   │   │   ├── weather_agent.py       # Weather information specialist
+│   │   │   ├── general_chat_agent.py  # General conversation handler
 │   │   │   └── tools/                 # Tool registry and implementations
+│   │   ├── config/           # Configuration management
+│   │   │   ├── __init__.py           # Configuration module exports
+│   │   │   └── multi_agent_config.py # Multi-agent system configuration
 │   │   ├── infrastructure/    # MongoDB service layer
-│   │   ├── llm/              # Gemini LLM integration
-│   │   │   └── gemini_llm.py         # Gemini API wrapper
+│   │   ├── llm/              # OpenAI-compatible LLM integration
+│   │   │   └── openai_compatible_llm.py  # Generic LLM wrapper
 │   │   ├── models/           # Data models and schemas
 │   │   ├── services/         # Business logic services
-│   │   │   └── chat_service.py       # Main chat orchestration
-│   │   ├── ui/               # Chainlit UI components
+│   │   │   ├── chat_service.py       # Main chat orchestration
+│   │   │   └── multi_agent_service.py # Multi-agent service layer
+│   │   ├── ui/               # Streamlit UI components
 │   │   └── workflow/         # Multi-agent workflows
 │   ├── static/               # Static web assets
 │   ├── app.py               # FastAPI application entry point
@@ -44,18 +61,24 @@ A comprehensive AI-powered assistant for agriculture data analysis and insights,
 
 1. **FastAPI Application** (`app.py`): Main web server with health checks and CORS
 2. **Chat Service** (`chat_service.py`): Orchestrates LLM calls and session management
-3. **LangGraph Agent** (`langraph_agent.py`): Multi-agent workflow with tool calling
-4. **Gemini LLM** (`gemini_llm.py`): Google Gemini API integration via OpenAI SDK
-5. **MongoDB Service** (`mongo_service.py`): Database operations and session storage
-6. **Chainlit UI** (`my_cl_app.py`): Interactive chat interface
+3. **Multi-Agent Service** (`multi_agent_service.py`): Service layer for multi-agent system coordination
+4. **Agent Coordinator** (`agent_coordinator.py`): Routes queries to appropriate specialized agents
+5. **Base Agent** (`base_agent.py`): Abstract base class providing common agent functionality
+6. **Specialized Agents**: Domain-specific agents (organic farming, financial, weather, general chat)
+7. **LangGraph Agent** (`langraph_agent.py`): Multi-agent workflow with tool calling
+8. **Intent Gathering Agent** (`intent_gathering_agent.py`): Clarifies user intent through conversation
+9. **Multi-Agent Config** (`multi_agent_config.py`): Configuration management for the multi-agent system
+10. **OpenAI-Compatible LLM** (`openai_compatible_llm.py`): Generic LLM wrapper supporting multiple providers via OpenAI SDK
+11. **MongoDB Service** (`mongo_service.py`): Database operations and session storage
+12. **Streamlit UI** (`streamlit_app.py`): Modern interactive chat interface with real-time streaming
 
 ### Data Flow
 
-1. User sends message via Chainlit UI or API
+1. User sends message via Streamlit UI or API
 2. Chat service creates/loads session and stores user message
 3. LangGraph agent processes message with conversation history
 4. Agent determines if tools are needed and executes them
-5. Gemini LLM generates response based on context and tool results
+5. LLM generates response based on context and tool results
 6. Response is streamed back to user and stored in session
 
 ## 🛠️ Setup & Installation
@@ -64,7 +87,7 @@ A comprehensive AI-powered assistant for agriculture data analysis and insights,
 
 - Python 3.11+
 - MongoDB (local or remote)
-- Google Gemini API key
+- LLM API key (OpenAI, Gemini, Claude via OpenRouter, or other OpenAI-compatible provider)
 - Google Maps API key (optional, for enhanced geocoding)
 
 ### Backend Setup
@@ -83,12 +106,12 @@ A comprehensive AI-powered assistant for agriculture data analysis and insights,
 
    Key dependencies include:
 
-   - `chainlit>=2.6.5` - Interactive chat UI
+   - `streamlit>=1.28.0` - Modern interactive web UI framework (migrated from Chainlit)
    - `fastapi[standard]>=0.116.1` - Web framework
    - `langchain-core>=0.3.72` - LangChain core components
    - `langgraph>=0.6.3` - Multi-agent workflows
    - `motor>=3.3.0` - Async MongoDB driver
-   - `openai>=1.98.0` - OpenAI SDK (used for Gemini API)
+   - `openai>=1.98.0` - OpenAI SDK (used for all LLM providers)
    - `pymongo>=4.14.0` - MongoDB driver
    - `python-dotenv>=1.1.1` - Environment variable management
 
@@ -102,14 +125,67 @@ A comprehensive AI-powered assistant for agriculture data analysis and insights,
 
    ```env
    MONGODB_URI=mongodb://localhost:27017/
-   GEMINI_API_KEY=your_gemini_api_key
+   LLM_MODEL=gpt-3.5-turbo
+   LLM_API_KEY=your_api_key
+   LLM_BASE_URL=https://api.openai.com/v1
    GOOGLE_MAPS_API_KEY=your_google_maps_api_key  # Optional
+   USE_MULTI_AGENT=true  # Enable multi-agent system
    ```
 
-4. **Start the application:**
+4. **Start the applications:**
+
+   **Option 1: Run both services together:**
+   ```bash
+   python main.py
+   ```
+
+   **Option 2: Run services separately:**
+   
+   Backend API:
    ```bash
    python app.py
    ```
+   
+   Streamlit UI (in a separate terminal):
+   ```bash
+   python run_streamlit.py
+   # OR
+   streamlit run src/ui/streamlit_app.py --server.port 8501
+   ```
+
+   **Option 3: Run Streamlit only:**
+   ```bash
+   python run_streamlit.py
+   ```
+
+### Open WebUI Setup (Alternative Chat Interface)
+
+For a modern, ChatGPT-like interface with advanced features:
+
+1. **Quick Setup with Docker:**
+   ```bash
+   ./setup-openwebui.sh
+   ```
+
+2. **Standalone Installation:**
+   ```bash
+   ./setup-openwebui-standalone.sh
+   ```
+
+3. **Manual Setup:**
+   ```bash
+   pip install open-webui
+   export OPENAI_API_BASE_URL="http://localhost:5050/v1"
+   export OPENAI_API_KEY="not_required"
+   open-webui serve --port 3000
+   ```
+
+**Access Points:**
+- Streamlit UI: http://localhost:8501 (modern interactive interface)
+- Open WebUI: http://localhost:3000 (ChatGPT-like interface)
+- API Docs: http://localhost:5050/docs
+
+See [OPENWEBUI_SETUP.md](OPENWEBUI_SETUP.md) for detailed setup instructions.
 
 ### Data Setup
 
@@ -136,6 +212,47 @@ A comprehensive AI-powered assistant for agriculture data analysis and insights,
    python add_geolocation.py
    ```
 
+## ⚙️ Configuration
+
+The system uses a centralized configuration management approach via the `MultiAgentConfig` class:
+
+### Configuration Options
+
+- **Agent Control**: Enable/disable specific agents
+- **Parallel Processing**: Configure multi-agent parallel execution
+- **LLM Settings**: Provider selection, model, temperature, token limits
+- **Response Settings**: Streaming delays, conversation history limits
+- **Environment Integration**: Environment variable overrides
+
+### Configuration Access
+
+```python
+from src.config import MultiAgentConfig
+
+# Get complete configuration
+config = MultiAgentConfig.get_config()
+
+# Check specific settings
+if MultiAgentConfig.is_agent_enabled("organic_farming"):
+    print("Organic farming agent is enabled")
+
+# Validate configuration
+issues = MultiAgentConfig.validate_config()
+if issues:
+    print(f"Configuration issues found: {issues}")
+```
+
+### Environment Variables
+
+The system respects these environment variables:
+
+- `USE_MULTI_AGENT`: Enable/disable multi-agent system (default: true)
+- `LLM_MODEL`: LLM model to use (default: gpt-3.5-turbo)
+- `LLM_API_KEY`: Required for LLM functionality
+- `LLM_BASE_URL`: API endpoint for LLM provider
+- `MONGODB_URI`: Database connection string
+- `GOOGLE_MAPS_API_KEY`: Optional for enhanced geocoding
+
 ## 🔧 API Endpoints
 
 ### Health Check
@@ -145,6 +262,30 @@ GET /health
 ```
 
 Returns system health status including MongoDB connection.
+
+### Agents Info
+
+```http
+GET /agents/info
+```
+
+Get information about available agents and their capabilities.
+
+Response example:
+```json
+{
+  "organic_farming": {
+    "name": "Organic Farming Guide",
+    "keywords": ["organic", "farming", "agriculture", "crop", "soil"],
+    "description": "Specialized in organic farming"
+  },
+  "financial": {
+    "name": "Financial Advisor", 
+    "keywords": ["finance", "money", "budget", "investment"],
+    "description": "Specialized in financial"
+  }
+}
+```
 
 ### Streaming Chat
 
@@ -158,27 +299,149 @@ Content-Type: application/json
 }
 ```
 
-### Chainlit UI
+### OpenAI API Compatibility
+
+The backend now provides OpenAI-compatible endpoints for integration with third-party tools like Open WebUI:
+
+#### List Models
 
 ```http
-GET /chat
+GET /v1/models
 ```
 
-Access the interactive chat interface with persistent session management. The UI automatically:
+Returns available models in OpenAI API format:
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "agriculture-ai-assistant",
+      "object": "model",
+      "created": 1677610602,
+      "owned_by": "agriculture-ai"
+    }
+  ]
+}
+```
 
-- Creates new chat sessions for first-time users
-- Maintains conversation history across messages
-- Tracks session IDs for seamless conversation continuity
+#### Chat Completions
+
+```http
+POST /v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "agriculture-ai-assistant",
+  "messages": [
+    {"role": "user", "content": "What's the weather like for farming?"}
+  ],
+  "stream": false
+}
+```
+
+**Streaming Support:**
+```http
+POST /v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "agriculture-ai-assistant", 
+  "messages": [
+    {"role": "user", "content": "How can I improve crop yield?"}
+  ],
+  "stream": true
+}
+```
+
+Returns OpenAI-compatible streaming responses with proper SSE formatting.
+
+### Streamlit UI
+
+Access the modern interactive chat interface at `http://localhost:8501` with comprehensive features:
+
+#### Key Features
+- **Real-time Streaming**: Word-by-word response streaming with typing indicators for immediate feedback
+- **HTTP API Integration**: Communicates with FastAPI backend via HTTP requests for better separation of concerns
+- **Session Management**: Persistent conversation history with automatic session tracking and generation
+- **Modern Interface**: Clean, responsive design with custom CSS styling and gradient headers
+- **Mobile-Friendly**: Responsive design that works seamlessly on all devices
+- **Settings Panel**: Sidebar with language selection, session info, and chat management controls
+- **Robust Error Handling**: Comprehensive error handling with user-friendly messages and recovery suggestions
+- **Connection Management**: Automatic detection of backend availability with helpful troubleshooting tips
+- **Chat Controls**: Clear chat functionality, session information display, and conversation history
+
+#### UI Components
+- **Header**: Branded header with gradient styling and application description
+- **Chat Interface**: Streamlit's native chat interface with persistent message history
+- **Sidebar**: Settings panel with user session info, language selection, and controls
+- **Streaming Display**: Real-time message streaming with visual typing indicators (▌)
+- **Custom Styling**: Professional appearance with custom CSS, gradients, and responsive theming
+- **Error Messages**: User-friendly error displays with actionable troubleshooting guidance
+
+#### Architecture
+- **Decoupled Design**: Streamlit UI communicates with FastAPI backend via HTTP API calls
+- **API Integration**: Uses `/chat/stream` endpoint for streaming responses
+- **Session Handling**: Automatic session ID generation and management across conversations
+- **Connection Resilience**: Graceful handling of backend connectivity issues with clear user feedback
+
+#### Running the Streamlit App
+```bash
+# Option 1: Using the run script (Streamlit only)
+python run_streamlit.py
+
+# Option 2: Direct Streamlit command
+streamlit run src/ui/streamlit_app.py --server.port 8501
+
+# Option 3: Run with both FastAPI and Streamlit (Recommended)
+python main.py
+```
+
+**Important**: The Streamlit app requires the FastAPI backend to be running at `http://localhost:5050` for full functionality. When running separately, ensure both services are started.
+
+#### Advantages over Previous Chainlit Implementation
+- **Better Customization**: Full control over UI components and styling
+- **Service Separation**: Clean separation between UI and backend services
+- **Rich Widgets**: Built-in support for forms, charts, file uploads, and more
+- **Easier Deployment**: Multiple deployment options (Streamlit Cloud, Docker, etc.)
+- **Better State Management**: More intuitive session state handling with automatic session generation
+- **Community Support**: Larger community and extensive documentation
+- **Mobile Responsive**: Better mobile experience out of the box
+- **Error Recovery**: Comprehensive error handling with user guidance for common issues
 
 ## 🤖 Agent Capabilities
 
-The LangGraph agent system includes:
+The system features a sophisticated multi-agent architecture with specialized agents and intelligent routing:
+
+### Agent Architecture
+
+- **Agent Coordinator**: Central routing system that determines which agents should handle queries
+- **Base Agent Class**: Abstract base class (`BaseAgent`) providing common functionality for all specialized agents
+- **Specialized Agents**: Domain-specific agents inheriting from `BaseAgent`:
+  - **Organic Farming Agent**: Specialized in sustainable agriculture practices
+  - **Financial Agent**: Handles financial advice, calculations, and planning
+  - **Weather Agent**: Provides weather information and agricultural weather guidance
+  - **General Chat Agent**: Handles general conversations and non-specialized queries
+- **LangGraph Integration**: StateGraph workflow with proper state management
+- **Intent Gathering Agent**: Clarifies user intent through conversational interaction
+- **Multi-Agent Service**: Service layer that orchestrates the entire multi-agent system
+- **Configuration Management**: Centralized configuration via `MultiAgentConfig` class
+
+### Base Agent Features
+
+The `BaseAgent` class provides:
+- **Abstract Interface**: Standardized methods for all specialized agents
+- **LLM Integration**: Built-in OpenAI-compatible LLM support with conversation history
+- **Streaming Support**: Word-by-word response streaming capabilities
+- **Error Handling**: Graceful error recovery and user feedback
+- **Conversation Management**: Automatic conversation history handling (last 5 messages)
 
 ### LLM Integration
 
-- **Gemini 2.0 Flash**: Latest Google Gemini model via OpenAI SDK compatibility
+- **Multi-Provider Support**: Works with any OpenAI SDK-compatible LLM provider
+- **Flexible Configuration**: Easy switching between providers via environment variables
 - **Streaming Responses**: Word-by-word streaming for real-time interaction
 - **Context Management**: Maintains conversation history across sessions
+- **Message Format**: LangChain message format with system, human, and AI messages
 
 ### Available Tools
 
@@ -195,16 +458,16 @@ The agent automatically detects when to use tools based on user queries:
 - "Calculate 25 \* 4 + 10" → Uses calculator tool
 - "Where is Jamjodhpur located?" → Uses location tool
 
-### Agent Architecture
+### Agent Workflow
 
 - **StateGraph Workflow**: Proper LangGraph implementation with state management
 - **Tool Call Detection**: Regex-based tool call extraction from LLM responses
-- **Error Handling**: Graceful error recovery and user feedback
+- **Intent Clarification**: Multi-turn conversations to gather complete user intent
 - **Conditional Routing**: Smart routing between model calls and tool execution
 
 ### Session Management
 
-The Chainlit UI provides seamless conversation continuity:
+The Streamlit UI provides seamless conversation continuity:
 
 - **Automatic Session Creation**: New sessions are created for first-time users
 - **Session ID Tracking**: Session IDs are automatically stored and reused for conversation continuity
@@ -229,7 +492,10 @@ cd backend
 python test_agent.py        # Test agent functionality
 python test_langraph.py     # Test LangGraph workflows
 python simple_test.py       # Basic system tests
+python test_conversation_history.py  # Test conversation history functionality
 ```
+
+All test files use the standardized environment variables (`LLM_MODEL`, `LLM_API_KEY`, `LLM_BASE_URL`) for consistent multi-provider LLM support.
 
 ## 🔍 Development & Debugging
 
@@ -243,7 +509,7 @@ The LangGraph agent includes enhanced debugging capabilities:
 
 ### Session Management Debugging
 
-The Chainlit UI includes visual feedback for session management:
+The Streamlit UI includes visual feedback for session management:
 
 - 🔗 indicator when new sessions are created and stored
 - 🔄 indicator when existing sessions are reused
@@ -259,15 +525,56 @@ The Chainlit UI includes visual feedback for session management:
 
 ### Local Development
 
+**Option 1: Run both services together (Recommended):**
 ```bash
-# Backend
+cd backend && python main.py
+```
+This starts both FastAPI backend and Streamlit UI simultaneously.
+
+**Option 2: Run services separately:**
+```bash
+# Backend API (Terminal 1)
 cd backend && python app.py
 
-# Access at:
-# - API: http://localhost:8000
-# - Chat UI: http://localhost:8000/chat
-# - Health: http://localhost:8000/health
+# Streamlit UI (Terminal 2) 
+cd backend && python run_streamlit.py
 ```
+Use this option for development when you need to restart services independently.
+
+**Option 3: Streamlit only (Limited functionality):**
+```bash
+cd backend && python run_streamlit.py
+```
+**Note**: This will show connection errors since the Streamlit app requires the FastAPI backend for chat functionality.
+
+**Access Points:**
+- Streamlit UI: http://localhost:8501 (Modern chat interface - requires backend)
+- Backend API: http://localhost:5050 (REST API)
+- Health Check: http://localhost:5050/health
+- OpenAI API: http://localhost:5050/v1/models
+- API Documentation: http://localhost:5050/docs
+
+**Development Tips:**
+- Always run both services for full functionality
+- The Streamlit app will display helpful error messages if the backend is not available
+- Use Option 2 for development to restart services independently
+- Check the health endpoint to verify backend connectivity
+
+### Docker Deployment
+
+The project includes Docker Compose configuration with Open WebUI integration:
+
+```bash
+# Start all services
+docker-compose up -d
+
+# Access at:
+# - Backend API: http://localhost:5050
+# - Open WebUI: http://localhost:3000
+# - Chat UI: http://localhost:5050/chat
+```
+
+**Open WebUI Integration**: The Docker setup includes Open WebUI configured to use the agriculture AI assistant as an OpenAI-compatible backend, providing a modern chat interface with the full power of the multi-agent system.
 
 ### Production Considerations
 
@@ -300,30 +607,105 @@ For issues and questions:
 
 ## 🧠 LLM Integration
 
-### Gemini LLM Implementation
+### OpenAI-Compatible LLM Implementation
 
-The system uses Google's Gemini 2.5 Flash model through OpenAI SDK compatibility:
+The system uses a generic OpenAI-compatible LLM wrapper that supports multiple providers:
 
-- **Model**: `gemini-2.5-flash` (configurable)
-- **API Endpoint**: `https://generativelanguage.googleapis.com/v1beta/openai/`
+- **Model**: Configurable via `LLM_MODEL` environment variable (default: `gpt-3.5-turbo`)
+- **API Key**: Set via `LLM_API_KEY` environment variable
+- **Base URL**: Configurable via `LLM_BASE_URL` environment variable for different providers
+- **Supported Providers**: Any OpenAI SDK-compatible service (OpenAI, Gemini, Claude via OpenRouter, local models, etc.)
 - **Message Format**: Converts LangChain messages to OpenAI format
 - **Error Handling**: Graceful fallback for API failures
 - **Temperature Control**: Configurable response creativity (default: 0.7)
 
 ### Configuration
 
+The multi-agent system is configured via the `MultiAgentConfig` class:
+
 ```python
-# Initialize Gemini LLM
-llm = GeminiLLM(
-    model="gemini-2.5-flash",  # or "gemini-1.5-pro"
-    api_key=os.getenv("GEMINI_API_KEY")
+# Import configuration
+from src.config import MultiAgentConfig
+
+# Check configuration
+config = MultiAgentConfig.get_config()
+print(f"Multi-agent enabled: {config['use_multi_agent']}")
+print(f"Available agents: {config['agents_enabled']}")
+
+# Validate configuration
+issues = MultiAgentConfig.validate_config()
+if issues:
+    print(f"Configuration issues: {issues}")
+
+# Initialize OpenAI-compatible LLM
+from src.llm.openai_compatible_llm import OpenAICompatibleLLM
+llm = OpenAICompatibleLLM(
+    model=MultiAgentConfig.DEFAULT_MODEL,
+    api_key=MultiAgentConfig.LLM_API_KEY,
+    base_url=os.getenv("LLM_BASE_URL")
 )
+
+# Use the multi-agent service
+from src.services.multi_agent_service import multi_agent_service
+from src.models.chat_request import ChatRequest
+
+request = ChatRequest(message="What's the weather like for farming?")
+async for chunk, is_complete in multi_agent_service.generate_streaming_response(request):
+    if not is_complete:
+        print(chunk, end="")
 ```
+
+### Environment Variables
+
+Configure the system via environment variables:
+
+```env
+# LLM Configuration (OpenAI-compatible)
+USE_MULTI_AGENT=true
+LLM_MODEL=gpt-3.5-turbo
+LLM_API_KEY=your_api_key
+LLM_BASE_URL=https://api.openai.com/v1
+
+# Database
+MONGODB_URI=mongodb://localhost:27017/
+
+# Optional
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+```
+
+**Provider Examples**:
+- **OpenAI**: `LLM_MODEL=gpt-4`, `LLM_BASE_URL=https://api.openai.com/v1` (or omit for default)
+- **Gemini**: `LLM_MODEL=gemini-2.5-flash`, `LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`
+- **OpenRouter (Claude, etc.)**: `LLM_MODEL=anthropic/claude-3-sonnet`, `LLM_BASE_URL=https://openrouter.ai/api/v1`
+- **Local Models**: `LLM_MODEL=llama-3`, `LLM_BASE_URL=http://localhost:11434/v1`
+- **Other Providers**: Any OpenAI SDK-compatible endpoint
 
 ## 🔄 Recent Updates
 
-- **Gemini LLM Integration**: Added Google Gemini 2.5 Flash model support via OpenAI SDK compatibility
-- **Enhanced Session Management**: Improved Chainlit UI with automatic session ID tracking and persistent conversation history
+- **Streamlit Architecture Improvement**: Updated Streamlit UI to communicate with FastAPI backend via HTTP API calls for better service separation and deployment flexibility
+- **Enhanced Error Handling**: Added comprehensive error handling with user-friendly messages and troubleshooting guidance for backend connectivity issues
+- **Robust Session Management**: Improved session handling with automatic session ID generation and persistent conversation history
+- **Streamlit Migration**: Migrated from Chainlit to Streamlit for a modern, customizable chat interface with better user experience and mobile responsiveness
+- **Enhanced UI Features**: Added custom styling, sidebar controls, session management, and improved error handling
+- **Multiple Run Options**: Added convenient scripts for running Streamlit alone or with FastAPI backend
+- **OpenAI API Compatibility**: Added full OpenAI API-compatible endpoints (`/v1/models`, `/v1/chat/completions`) for third-party integrations
+- **Open WebUI Integration**: Docker Compose setup with Open WebUI for modern chat interface
+- **Streaming API Support**: OpenAI-compatible streaming responses with proper SSE formatting
+- **Third-Party Tool Support**: Backend now works seamlessly with OpenAI API clients and tools
+- **Standardized LLM Configuration**: All test files and components now use the standardized environment variables (`LLM_MODEL`, `LLM_API_KEY`, `LLM_BASE_URL`) for consistent multi-provider support
+- **Generic LLM Wrapper**: Refactored `GeminiLLM` to `OpenAICompatibleLLM` for multi-provider support (Gemini, OpenAI, Claude, local models)
+- **Flexible Provider Configuration**: Added `LLM_BASE_URL` environment variable for easy switching between LLM providers
+- **Environment Variable Configuration**: Updated to use `LLM_MODEL`, `LLM_API_KEY`, and `LLM_BASE_URL` for flexible LLM configuration
+- **Configuration Module**: Added centralized configuration management via `MultiAgentConfig` class with proper module exports
+- **Multi-Agent Coordination**: Implemented `AgentCoordinator` for intelligent query routing and multi-agent orchestration
+- **Specialized Agents**: Added domain-specific agents (organic farming, financial, weather, general chat) with keyword-based routing
+- **Parallel Processing**: Support for running multiple agents simultaneously on complex queries
+- **Base Agent Architecture**: Introduced `BaseAgent` abstract base class for standardized agent development with streaming support and conversation management
+- **Multi-Agent Service**: Service layer for coordinating the entire multi-agent system with streaming responses
+- **Intent Gathering**: Added `IntentGatheringAgent` for clarifying user intent through conversational interaction
+- **Streaming Support**: Built-in streaming capabilities in the base agent class
+- **OpenAI-Compatible LLM Integration**: Unified interface supporting multiple providers through standardized OpenAI SDK format
+- **Enhanced Session Management**: Modern Streamlit UI with automatic session ID tracking and persistent conversation history
 - **LangGraph Agent Improvements**: Enhanced tool debugging with description logging for better development visibility
 - **Tool Call Detection**: Implemented regex-based tool call extraction for reliable tool execution
 - **Conversation Continuity**: Seamless chat experience with proper session handling across multiple messages

@@ -1,6 +1,6 @@
 # Agriculture Data Loader
 
-This directory contains scripts and data files for loading, enriching, and preparing Indian district-level agriculture datasets for analysis. The pipeline loads CSVs into MongoDB, adds geolocation coordinates, and enables geospatial queries.
+This directory contains scripts and data files for loading, enriching, and preparing Indian district-level agriculture datasets for analysis. The pipeline loads CSVs into MongoDB, adds geolocation coordinates, and enables geospatial queries for the Agriculture AI Assistant's Streamlit chat interface.
 
 ## Contents
 

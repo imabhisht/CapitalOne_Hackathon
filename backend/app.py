@@ -1,19 +1,21 @@
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from chainlit.utils import mount_chainlit
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import json
 import os
 import sys
 import logging
+import subprocess
+import threading
 
 # Import Models
 from src.models.chat_request import ChatRequest, ChatResponse
 
 # Import our services
 from src.services.chat_service import chat_service
+from src.services.multi_agent_service import multi_agent_service
 from src.infrastructure.mongo_service import mongo_service
 
 # Configure logging
@@ -60,9 +62,9 @@ async def lifespan(app: FastAPI):
     if not os.path.exists(index_file):
         logger.warning(f"Index file '{index_file}' not found")
     
-    chainlit_app = "./src/ui/my_cl_app.py"
-    if not os.path.exists(chainlit_app):
-        logger.warning(f"Chainlit app '{chainlit_app}' not found")
+    streamlit_app = "./src/ui/streamlit_app.py"
+    if not os.path.exists(streamlit_app):
+        logger.warning(f"Streamlit app '{streamlit_app}' not found")
     
     # Initialize chat service if needed
     try:
@@ -111,9 +113,15 @@ async def health_check():
     health_status = {
         "status": "healthy",
         "mongodb": "connected" if mongo_service.is_connected() else "disconnected",
-        "chat_service": "ready"
+        "chat_service": "ready",
+        "multi_agent_service": "available" if multi_agent_service.is_available() else "unavailable"
     }
     return health_status
+
+@app.get("/agents/info")
+async def get_agents_info():
+    """Get information about available agents"""
+    return multi_agent_service.get_agent_info()
 
 @app.post("/chat/stream")
 async def stream_chat(request: ChatRequest):
@@ -149,9 +157,147 @@ async def stream_chat(request: ChatRequest):
         }
     )
 
-# Mount Chainlit (do this after all other routes are defined)
-try:
-    mount_chainlit(app=app, target="./src/ui/my_cl_app.py", path="/chat")
-    logger.info("Chainlit mounted successfully at /chat")
-except Exception as e:
-    logger.error(f"Failed to mount Chainlit: {e}")
+# OpenAI API compatibility endpoints for Open WebUI
+@app.get("/v1/models")
+async def list_models():
+    """List available models - OpenAI API compatible"""
+    return {
+        "object": "list",
+        "data": [
+            {
+                "id": os.getenv("LLM_MODEL", "agriculture-ai-assistant"),
+                "object": "model",
+                "created": 1677610602,
+                "owned_by": "agriculture-ai",
+                "permission": [],
+                "root": os.getenv("LLM_MODEL", "agriculture-ai-assistant"),
+                "parent": None
+            }
+        ]
+    }
+
+@app.post("/v1/chat/completions")
+async def chat_completions(request: dict):
+    """OpenAI-compatible chat completions endpoint"""
+    try:
+        # Extract the last message from the OpenAI format
+        messages = request.get("messages", [])
+        if not messages:
+            return {"error": "No messages provided"}
+        
+        # Get the last user message
+        last_message = messages[-1]["content"] if messages else ""
+        
+        # Create our internal chat request
+        chat_request = ChatRequest(
+            message=last_message,
+            session_id=request.get("session_id")
+        )
+        
+        # Check if streaming is requested
+        stream = request.get("stream", False)
+        
+        if stream:
+            async def generate_openai_stream():
+                try:
+                    full_response = ""
+                    async for content_chunk, is_complete in chat_service.generate_streaming_response(request=chat_request):
+                        if not is_complete:
+                            full_response += content_chunk
+                            chunk = {
+                                "id": "chatcmpl-agriculture-ai",
+                                "object": "chat.completion.chunk",
+                                "created": 1677610602,
+                                "model": os.getenv("LLM_MODEL", "agriculture-ai-assistant"),
+                                "choices": [
+                                    {
+                                        "index": 0,
+                                        "delta": {
+                                            "content": content_chunk
+                                        },
+                                        "finish_reason": None
+                                    }
+                                ]
+                            }
+                            yield f"data: {json.dumps(chunk)}\n\n"
+                        else:
+                            # Send final chunk
+                            final_chunk = {
+                                "id": "chatcmpl-agriculture-ai",
+                                "object": "chat.completion.chunk",
+                                "created": 1677610602,
+                                "model": os.getenv("LLM_MODEL", "agriculture-ai-assistant"),
+                                "choices": [
+                                    {
+                                        "index": 0,
+                                        "delta": {},
+                                        "finish_reason": "stop"
+                                    }
+                                ]
+                            }
+                            yield f"data: {json.dumps(final_chunk)}\n\n"
+                            yield "data: [DONE]\n\n"
+                except Exception as e:
+                    logger.error(f"Error in OpenAI streaming: {e}")
+                    error_chunk = {
+                        "error": {
+                            "message": str(e),
+                            "type": "internal_error"
+                        }
+                    }
+                    yield f"data: {json.dumps(error_chunk)}\n\n"
+            
+            return StreamingResponse(
+                generate_openai_stream(),
+                media_type="text/plain",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "Content-Type": "text/plain; charset=utf-8"
+                }
+            )
+        else:
+            # Non-streaming response
+            full_response = ""
+            async for content_chunk, is_complete in chat_service.generate_streaming_response(request=chat_request):
+                if not is_complete:
+                    full_response += content_chunk
+            
+            return {
+                "id": "chatcmpl-agriculture-ai",
+                "object": "chat.completion",
+                "created": 1677610602,
+                "model": os.getenv("LLM_MODEL", "agriculture-ai-assistant"),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": full_response
+                        },
+                        "finish_reason": "stop"
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": len(last_message.split()),
+                    "completion_tokens": len(full_response.split()),
+                    "total_tokens": len(last_message.split()) + len(full_response.split())
+                }
+            }
+    except Exception as e:
+        logger.error(f"Error in chat completions: {e}")
+        return {
+            "error": {
+                "message": str(e),
+                "type": "internal_error"
+            }
+        }
+
+# Streamlit integration
+@app.get("/streamlit")
+async def redirect_to_streamlit():
+    """Redirect to Streamlit app"""
+    return {"message": "Streamlit app is running on port 8501", "url": "http://localhost:8501"}
+
+# Note: Streamlit runs as a separate process
+# You can start it with: streamlit run src/ui/streamlit_app.py --server.port 8501

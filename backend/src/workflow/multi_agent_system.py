@@ -7,7 +7,7 @@ class MultiAgentSystem:
         
         Args:
             model: Gemini model name (default: "gemini-2.5-flash")
-            api_key: Gemini API key (if None, uses GEMINI_API_KEY env var)
+            api_key: LLM API key (if None, uses LLM_API_KEY env var)
         """
         self.intent_agent = IntentGatheringAgent(model=model, api_key=api_key)
         self.executor_agent = TaskExecutionAgent(model=model, api_key=api_key)

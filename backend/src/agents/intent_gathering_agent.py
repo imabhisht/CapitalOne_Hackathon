@@ -1,10 +1,10 @@
-from src.llm.gemini_llm import GeminiLLM
+from src.llm.openai_compatible_llm import OpenAICompatibleLLM
 from src.models.agent_state import AgentState
 from langchain_core.messages import SystemMessage
 
 class IntentGatheringAgent:
     def __init__(self, model="gemini-2.5-flash", api_key=None):
-        self.llm = GeminiLLM(model=model, api_key=api_key)
+        self.llm = OpenAICompatibleLLM(model=model, api_key=api_key)
         self.system_prompt = """You are an Intent Gathering Agent. Your job is to understand the complete user intent by asking clarifying questions until you have all necessary information.
 
 Guidelines:

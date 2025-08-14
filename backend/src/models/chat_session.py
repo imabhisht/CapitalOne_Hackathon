@@ -24,12 +24,19 @@ class ChatSession:
         self._is_new_session = False
         
         if session_id:
-            # Existing session - load from database
+            # Existing session - load from database asynchronously
+            import asyncio
             self.id = session_id
-            self._load_session_from_db()
-            # Load latest messages if refresh is True or this is an existing session
+            # Initialize placeholders so attributes exist before load
+            self.title = None
+            self.metadata = {}
+            self.created_at = None
+            self.updated_at = None
+            # Schedule async loading to avoid un-awaited coroutine warnings
+            asyncio.create_task(self._load_session_from_db())
+            # Schedule latest messages if refresh is requested
             if refresh:
-                self._load_latest_messages()
+                asyncio.create_task(self._load_latest_messages())
         else:
             # New session - generate new ID and set defaults
             self.id = str(uuid4())
