@@ -62,7 +62,8 @@ class ChatSession:
             })
             
             if document:
-                self.title = document.get("title", f"Chat Session {document.get('created_at', datetime.now(timezone.utc)).strftime('%Y-%m-%d %H:%M')}")
+                created_at = document.get('created_at') or datetime.now(timezone.utc)
+                self.title = document.get("title", f"Chat Session {created_at.strftime('%Y-%m-%d %H:%M')}")
                 self.metadata = document.get("metadata", {})
                 self.created_at = document.get("created_at", datetime.now(timezone.utc))
                 self.updated_at = document.get("updated_at", datetime.now(timezone.utc))
@@ -378,7 +379,8 @@ class ChatSession:
             instance.db = db
             instance.id = document["_id"]
             instance.user_id = document.get("user_id")
-            instance.title = document.get("title", f"Chat Session {document.get('created_at', datetime.now(timezone.utc)).strftime('%Y-%m-%d %H:%M')}")
+            created_at = document.get('created_at') or datetime.now(timezone.utc)
+            instance.title = document.get("title", f"Chat Session {created_at.strftime('%Y-%m-%d %H:%M')}")
             instance.metadata = document.get("metadata", {})
             instance.created_at = document.get("created_at", datetime.now(timezone.utc))
             instance.updated_at = document.get("updated_at", datetime.now(timezone.utc))

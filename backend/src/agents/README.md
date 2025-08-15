@@ -10,6 +10,7 @@ agents/
 ├── base_agent.py              # Abstract base class for all agents
 ├── agent_coordinator.py       # Multi-agent coordination and routing
 ├── langraph_agent.py          # LangGraph workflow implementation
+├── iterative_agent.py         # Iterative reasoning agent with controlled loops
 ├── intent_gathering_agent.py  # Intent clarification agent
 ├── organic_farming_agent.py   # Organic farming specialist agent
 ├── financial_agent.py         # Financial advice specialist agent
@@ -22,6 +23,81 @@ agents/
 │   ├── weather_tool.py        # Weather information tool
 │   └── calculator_tool.py     # Mathematical calculation tool
 └── README.md                 # This file
+```
+
+## Recent Updates
+
+### Improved Iterative Agent User Experience (v2.1)
+
+The iterative agent streaming interface has been enhanced for better user experience:
+
+#### Key Improvements
+
+- **Clean Streaming Interface**: Removed verbose step-by-step progress indicators in favor of natural word-by-word final answer delivery
+- **Background Processing**: Complex reasoning and tool execution happen behind the scenes with detailed logging for developers
+- **Natural Conversation Flow**: Users experience smooth, ChatGPT-like responses without technical clutter
+- **Developer Debugging**: Complete iteration history and tool execution details available in logs and response metadata
+- **Error Handling**: User-friendly error messages without exposing technical implementation details
+- **Performance Transparency**: Iteration counts and processing metadata available without cluttering the user interface
+
+#### User Experience Benefits
+
+- **Reduced Cognitive Load**: Users focus on the final answer rather than intermediate processing steps
+- **Professional Appearance**: Clean, polished interface suitable for production applications
+- **Faster Perceived Response**: Word-by-word streaming feels more responsive than chunked updates
+- **Consistent Experience**: Matches expectations from modern AI chat interfaces
+
+### Enhanced Tool Registry (v2.0)
+
+The tool registry has been significantly improved to provide better compatibility with LangChain tools and more flexible tool invocation patterns:
+
+#### Key Improvements
+
+- **Enhanced LangChain Support**: Improved handling of LangChain tools with proper `tool_input` parameter formatting
+- **Flexible Invocation Patterns**: Support for multiple tool invocation methods:
+  - `run(tool_input=param)` for LangChain tools with single parameters
+  - `run(tool_input="")` for LangChain tools with empty parameters (improved compatibility)
+  - `run(**kwargs)` for LangChain tools with keyword arguments
+  - `invoke({"tool_input": param})` for LangChain tools with dictionary parameters
+  - `invoke(kwargs)` for advanced LangChain tools
+  - Direct function calls for simple tools
+- **Automatic Parameter Handling**: Intelligent parameter conversion based on input type
+- **Improved Empty Parameter Handling**: Fixed empty parameter case to properly pass `tool_input=""` for better LangChain compatibility
+- **Better Error Messages**: Clear error messages for unsupported tool types
+- **Backward Compatibility**: Existing tools continue to work without changes
+
+#### Tool Adapter Pattern
+
+The `ToolAdapter` class provides a unified interface for all tool types:
+
+```python
+class ToolAdapter:
+    def __init__(self, func: Callable):
+        self.name = getattr(func, "name", func.__name__)
+        self.description = getattr(func, "description", func.__doc__ or "")
+        self._func = func
+    
+    def invoke(self, param: Any = None):
+        # Intelligent parameter handling and method selection
+        # Supports: run(), invoke(), direct calls
+        # Handles: strings, dictionaries, None parameters
+```
+
+#### Usage Examples
+
+```python
+from src.agents.tools.registry import tool_registry
+
+# Get all tools
+tools = tool_registry.get_all_tools()
+
+# Get specific tool
+weather_tool = tool_registry.get_tool("get_weather")
+
+# Invoke with different parameter types
+result1 = weather_tool.invoke("Mumbai")  # String parameter
+result2 = weather_tool.invoke({"location": "Delhi"})  # Dictionary parameter
+result3 = weather_tool.invoke()  # No parameters
 ```
 
 ## Components
@@ -48,16 +124,82 @@ Main workflow orchestrator that implements LangGraph patterns:
 - **LLM Integration**: Works with any OpenAI SDK-compatible LLM provider
 - **Enhanced Debugging**: Tool descriptions are logged during initialization for better development visibility
 
+### IterativeAgent (`iterative_agent.py`)
+
+Advanced reasoning agent that can solve complex problems through controlled iteration:
+
+- **Controlled Iteration**: Configurable maximum iterations (default: 5) to prevent excessive LLM calls
+- **Structured Reasoning**: Follows THOUGHT → ACTION → OBSERVATION → FINAL_ANSWER pattern
+- **Tool Integration**: Strategic tool calling during the reasoning process
+- **Streaming Support**: Real-time updates with step-by-step progress indicators
+- **Response Parsing**: Intelligent parsing of LLM responses using regex patterns
+- **Error Handling**: Graceful recovery from tool failures and iteration limits
+- **Conversation Context**: Maintains conversation history throughout iterations
+- **Final Answer Detection**: Automatically detects when sufficient information is gathered
+
+#### Key Features
+
+- **IterationStep Dataclass**: Tracks each step with thought, action, observation, and completion status
+- **Strategic Tool Usage**: Only calls tools when necessary to advance toward the solution
+- **Clean Streaming Experience**: Minimal progress indicators with word-by-word final answer delivery
+- **Maximum Iteration Safety**: Prevents infinite loops with configurable limits
+- **Tool Execution Safety**: Safe tool parameter handling with error recovery
+- **Response Format Parsing**: Extracts THOUGHT, ACTION, ACTION_INPUT, and FINAL_ANSWER from LLM responses
+- **Background Processing**: Detailed logging for debugging while maintaining clean user interface
+
+#### Usage Patterns
+
+The iterative agent is ideal for complex, multi-step problems:
+
+```python
+from src.agents.iterative_agent import IterativeAgent
+from src.llm.openai_compatible_llm import OpenAICompatibleLLM
+
+# Initialize agent
+llm = OpenAICompatibleLLM(model="gpt-3.5-turbo", api_key="your-key")
+agent = IterativeAgent(llm, max_iterations=5)
+
+# Process complex query
+final_answer, steps = await agent.process_iteratively(
+    "Analyze weather patterns and recommend optimal crops for maximum profit"
+)
+
+# Stream processing with clean user experience
+async for chunk, is_complete, step_info in agent.stream_process_iteratively(
+    "Calculate irrigation costs and create a planting schedule"
+):
+    if not is_complete:
+        print(chunk, end="")  # Clean word-by-word streaming of final answer
+```
+
+#### Response Format
+
+The agent expects LLM responses in this format:
+
+```
+THOUGHT: [Reasoning about what to do next]
+ACTION: [tool_name]
+ACTION_INPUT: {"parameter": "value"}
+
+OR for final answers:
+
+THOUGHT: [Final reasoning]
+FINAL_ANSWER: [Complete response to user]
+```
+
 ### AgentCoordinator (`agent_coordinator.py`)
 
-Central coordination system that manages multiple specialized agents:
+Central coordination system that manages multiple specialized agents with enhanced routing logic:
 
-- **Query Routing**: Intelligent routing of queries to appropriate agents using LLM-based analysis
+- **Intelligent Query Routing**: Advanced LLM-based routing that determines optimal processing mode (SIMPLE vs ITERATIVE)
 - **Multi-Agent Orchestration**: Coordinates multiple agents for complex queries
+- **Iterative Processing Integration**: Routes complex multi-step queries to the iterative agent
+- **Weather Query Intelligence**: Smart handling of weather queries based on location specificity
+- **Real-time Data Detection**: Automatically routes queries requiring current information to iterative processing
 - **Parallel Processing**: Can run multiple agents simultaneously for comprehensive responses
 - **Fallback Routing**: Keyword-based fallback when LLM routing fails
 - **Response Combination**: Merges responses from multiple agents into coherent answers
-- **Streaming Support**: Provides streaming responses for real-time interaction
+- **Streaming Support**: Provides clean streaming responses with minimal visual clutter
 
 ### Specialized Agents
 
@@ -95,9 +237,15 @@ Specialized agent for clarifying user intent through conversational interaction:
 
 ### Tool Registry (`tools/registry.py`)
 
-- Central registry for all available tools
-- Provides methods to get tools by name or get all tools
-- Allows dynamic tool registration
+- **Central Registry**: Manages all available tools with standardized interface
+- **Tool Adapter Pattern**: Normalizes different tool types (functions, LangChain tools, custom tools) into consistent interface
+- **Enhanced LangChain Compatibility**: Improved support for LangChain tools with proper `tool_input` parameter handling, including fixed empty parameter handling
+- **Flexible Invocation**: Supports multiple invocation patterns:
+  - Direct function calls for simple tools
+  - `run()` method for LangChain tools with proper parameter formatting (including `tool_input=""` for empty parameters)
+  - `invoke()` method for advanced LangChain tools with dictionary parameters
+- **Dynamic Registration**: Allows runtime tool registration and management
+- **Error Handling**: Graceful fallback for unsupported tool types
 
 ## Agent Architecture Overview
 
@@ -142,6 +290,7 @@ The multi-agent system follows a hierarchical architecture with intelligent rout
 │                          Supporting Components                              │
 │  ┌─────────────────────────────────────────────────────────────────────────┐ │
 │  │  • LangGraph Agent (StateGraph workflow)                               │ │
+│  │  • Iterative Agent (controlled reasoning loops)                        │ │
 │  │  • Intent Gathering Agent (conversational clarification)               │ │
 │  │  • Tool Registry (location, weather, calculator tools)                 │ │
 │  │  • Configuration Management (MultiAgentConfig)                         │ │
@@ -166,20 +315,26 @@ The multi-agent system follows a hierarchical architecture with intelligent rout
 #### Location Tool (`tools/location_tool.py`)
 
 - **Function**: `get_location(query: str = "")`
-- **Purpose**: Returns static location data for Baroda, Jamjodhpur
-- **Returns**: Dictionary with city, coordinates, landmarks, etc.
+- **Purpose**: Returns comprehensive location data for Baroda, Jamjodhpur
+- **Returns**: Dictionary with city, coordinates, landmarks, demographics, industries
+- **LangChain Integration**: Decorated with `@tool` for seamless agent integration
+- **Error Handling**: Graceful error handling with fallback responses
 
 #### Weather Tool (`tools/weather_tool.py`)
 
 - **Function**: `get_weather(location: str = "Baroda, Jamjodhpur")`
-- **Purpose**: Returns mock weather data for a location
-- **Returns**: Dictionary with temperature, humidity, forecast, etc.
+- **Purpose**: Returns realistic mock weather data for agricultural planning
+- **Returns**: Dictionary with temperature, humidity, forecast, UV index, wind conditions
+- **LangChain Integration**: Decorated with `@tool` for seamless agent integration
+- **Agricultural Focus**: Includes farming-relevant weather metrics
 
 #### Calculator Tool (`tools/calculator_tool.py`)
 
 - **Function**: `calculate(expression: str)`
-- **Purpose**: Safely evaluates mathematical expressions
+- **Purpose**: Safely evaluates mathematical expressions using AST parsing
+- **Security**: Uses whitelist of safe operators to prevent code injection
 - **Returns**: Dictionary with expression, result, and success status
+- **LangChain Integration**: Decorated with `@tool` for seamless LangChain compatibility
 
 ## Usage
 
@@ -294,6 +449,97 @@ async for chunk, is_complete in agent.stream_invoke("What's the weather in Barod
         print(chunk, end='')
 ```
 
+### Using Iterative Agent
+
+The iterative agent is perfect for complex, multi-step problem solving:
+
+```python
+import os
+from src.agents.iterative_agent import IterativeAgent
+from src.llm.openai_compatible_llm import OpenAICompatibleLLM
+
+# Initialize OpenAI-compatible LLM
+llm = OpenAICompatibleLLM(
+    model=os.getenv("LLM_MODEL", "gpt-3.5-turbo"), 
+    api_key=os.getenv("LLM_API_KEY"),
+    base_url=os.getenv("LLM_BASE_URL")
+)
+
+# Create iterative agent with custom iteration limit
+agent = IterativeAgent(llm, max_iterations=7)
+
+# Process complex query with full iteration history
+final_answer, iteration_steps = await agent.process_iteratively(
+    "I need to plan my organic farm. What's the weather forecast, "
+    "which crops are most profitable, and how much should I invest?"
+)
+
+print(f"Final Answer: {final_answer}")
+print(f"Completed in {len(iteration_steps)} iterations")
+
+# Stream processing with clean user experience
+async for chunk, is_complete, step_info in agent.stream_process_iteratively(
+    "Calculate the ROI for switching to organic farming given current weather conditions"
+):
+    if not is_complete:
+        print(chunk, end="")  # Natural word-by-word streaming
+    else:
+        if step_info and step_info.get("final"):
+            print(f"\n✅ Completed in {step_info['total_iterations']} iterations")
+
+# Example of iteration step information
+for i, step in enumerate(iteration_steps):
+    print(f"Step {step.step_number}: {step.thought}")
+    if step.action:
+        print(f"  Action: {step.action}({step.action_input})")
+    if step.observation:
+        print(f"  Result: {step.observation}")
+```
+
+### Intelligent LLM Routing Integration
+
+The multi-agent system can integrate with the intelligent LLM routing service for optimal performance:
+
+```python
+from src.services.routing_service import routing_service
+
+# Get routing information for a query
+query = "How can I optimize my crop yields using data analysis?"
+routing_info = routing_service.get_routing_info(query)
+
+print(f"Query complexity: {routing_info['classification']}")
+print(f"Confidence: {routing_info['confidence']}")
+print(f"Selected model: {routing_info['selected_model']}")
+
+# Get appropriate LLM for the query
+llm, model_type = routing_service.get_appropriate_llm(query)
+print(f"Using {model_type} model for this query")
+
+# Use with agent coordinator
+coordinator = AgentCoordinator(llm)  # Uses the routed LLM
+```
+
+#### Routing Benefits for Multi-Agent System
+
+- **Cost Optimization**: Simple agent queries use smaller, faster models
+- **Performance**: Complex multi-agent workflows use more capable models
+- **Automatic Selection**: No manual model selection required
+- **Scalability**: Better resource utilization across different query types
+
+#### Configuration for Routing
+
+```env
+# Main LLM for complex multi-agent workflows
+LLM_MODEL=gpt-4
+LLM_API_KEY=your_api_key
+LLM_BASE_URL=https://api.openai.com/v1
+
+# Small LLM for simple agent queries
+SMALL_LLM_MODEL=gpt-3.5-turbo
+SMALL_LLM_API_KEY=your_api_key
+SMALL_LLM_BASE_URL=https://api.openai.com/v1
+```
+
 ### Configuration Management
 
 Configure the multi-agent system:
@@ -395,31 +641,101 @@ AGENTS_ENABLED = {
 
 ### Adding New Tools
 
-1. Create a new tool file in `tools/` directory
-2. Define your tool using the `@tool` decorator from `langchain_core.tools`
-3. Register it in `tools/registry.py`
+The enhanced tool registry supports multiple tool types and invocation patterns:
 
-Example:
+#### 1. LangChain Tools (Recommended)
 
 ```python
-# tools/my_new_tool.py
+# tools/my_langchain_tool.py
 from langchain_core.tools import tool
+from typing import Dict, Any
 
 @tool
-def my_new_tool(param: str) -> dict:
-    """Description of what the tool does."""
-    return {"result": "some result"}
+def my_langchain_tool(param: str) -> Dict[str, Any]:
+    """Description of what the tool does.
+    
+    Args:
+        param: Description of the parameter
+        
+    Returns:
+        Dictionary with tool results
+    """
+    try:
+        # Tool implementation
+        result = process_param(param)
+        return {"result": result, "success": True}
+    except Exception as e:
+        return {"error": str(e), "success": False}
 
-# In tools/registry.py
-from .my_new_tool import my_new_tool
+# Register in tools/registry.py
+from .my_langchain_tool import my_langchain_tool
 
 class ToolRegistry:
     def __init__(self):
         self._tools = {
             # ... existing tools
-            "my_new_tool": my_new_tool,
+            "my_langchain_tool": ToolAdapter(my_langchain_tool),
         }
 ```
+
+#### 2. Custom Tool Classes
+
+```python
+# tools/my_custom_tool.py
+class MyCustomTool:
+    def __init__(self):
+        self.name = "my_custom_tool"
+        self.description = "Custom tool description"
+    
+    def run(self, tool_input: str) -> dict:
+        """LangChain-style run method"""
+        return {"result": f"Processed: {tool_input}"}
+    
+    def invoke(self, params: dict) -> dict:
+        """LangChain-style invoke method"""
+        return {"result": f"Invoked with: {params}"}
+
+# Register in tools/registry.py
+from .my_custom_tool import MyCustomTool
+
+class ToolRegistry:
+    def __init__(self):
+        self._tools = {
+            # ... existing tools
+            "my_custom_tool": ToolAdapter(MyCustomTool()),
+        }
+```
+
+#### 3. Simple Function Tools
+
+```python
+# tools/my_simple_tool.py
+def my_simple_tool(param: str) -> dict:
+    """Simple function tool"""
+    return {"result": f"Simple result: {param}"}
+
+# Add metadata for better integration
+my_simple_tool.name = "my_simple_tool"
+my_simple_tool.description = "Simple function tool description"
+
+# Register in tools/registry.py
+from .my_simple_tool import my_simple_tool
+
+class ToolRegistry:
+    def __init__(self):
+        self._tools = {
+            # ... existing tools
+            "my_simple_tool": ToolAdapter(my_simple_tool),
+        }
+```
+
+#### Tool Registry Benefits
+
+- **Automatic Adaptation**: ToolAdapter automatically handles different tool types
+- **Consistent Interface**: All tools expose `.name`, `.description`, and `.invoke()` methods
+- **Parameter Flexibility**: Supports various parameter formats (strings, dictionaries, None)
+- **LangChain Compatibility**: Proper handling of `tool_input` parameter for LangChain tools
+- **Error Handling**: Graceful fallback for unsupported tool types
 
 ## Debugging & Development
 
@@ -465,6 +781,30 @@ python test_multi_agent.py  # Test multi-agent system and routing
 python test_agent.py        # Test LangGraph agent functionality
 python test_langraph.py     # Test LangGraph workflows
 python simple_test.py       # Basic system tests
+
+# Test iterative agent (create test file)
+python -c "
+import asyncio
+from src.agents.iterative_agent import IterativeAgent
+from src.llm.openai_compatible_llm import OpenAICompatibleLLM
+import os
+
+async def test_iterative():
+    llm = OpenAICompatibleLLM(
+        model=os.getenv('LLM_MODEL', 'gpt-3.5-turbo'),
+        api_key=os.getenv('LLM_API_KEY'),
+        base_url=os.getenv('LLM_BASE_URL')
+    )
+    agent = IterativeAgent(llm, max_iterations=3)
+    
+    print('Testing iterative agent...')
+    async for chunk, complete, info in agent.stream_process_iteratively('What is 25 * 4 + 10?'):
+        print(chunk, end='')
+        if complete:
+            print(f'\nCompleted in {info.get(\"total_iterations\", 0)} iterations')
+
+asyncio.run(test_iterative())
+"
 ```
 
 ### Test Coverage
@@ -474,6 +814,7 @@ python simple_test.py       # Basic system tests
 - **Specialized Agents**: Domain-specific functionality and keyword matching
 - **Base Agent**: Abstract method implementation and error handling
 - **LangGraph Agent**: Tool calling, state management, and streaming
+- **Iterative Agent**: Controlled iteration, tool calling, and step tracking
 - **Intent Gathering**: Intent clarification and completion detection
 - **Configuration**: Multi-agent configuration validation
 - **Tool Integration**: Location, weather, and calculation tools

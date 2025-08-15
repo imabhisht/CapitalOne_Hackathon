@@ -13,6 +13,7 @@ from src.models.chat_session import ChatSession
 from src.llm.openai_compatible_llm import OpenAICompatibleLLM
 from src.agents.langraph_agent import LangGraphAgent
 from src.services.multi_agent_service import multi_agent_service
+from src.services.routing_service import routing_service
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 # Configure logging
@@ -26,18 +27,31 @@ class ChatService:
     """
 
     def __init__(self):
-        # Initialize OpenAI-compatible LLM
+        # Initialize OpenAI-compatible LLM (main model)
         self.llm = OpenAICompatibleLLM(
             model=os.getenv("LLM_MODEL", "gpt-3.5-turbo"),
             api_key=os.getenv("LLM_API_KEY"),
             base_url=os.getenv("LLM_BASE_URL")
         )
         
-        # Initialize LangGraph Agent
+        # Initialize small LLM for routing and simple tasks
+        self.small_llm = OpenAICompatibleLLM(
+            model=os.getenv("SMALL_LLM_MODEL", "gpt-3.5-turbo"),
+            api_key=os.getenv("SMALL_LLM_API_KEY"),
+            base_url=os.getenv("SMALL_LLM_BASE_URL")
+        )
+        
+        # Initialize LangGraph Agent with main LLM
         self.agent = LangGraphAgent(self.llm)
+        
+        # Initialize small agent for simple tasks
+        self.small_agent = LangGraphAgent(self.small_llm)
         
         # Multi-agent mode flag (can be set via environment variable)
         self.use_multi_agent = os.getenv("USE_MULTI_AGENT", "true").lower() == "true"
+        
+        # Enable smart routing (can be disabled via environment variable)
+        self.use_smart_routing = os.getenv("USE_SMART_ROUTING", "true").lower() == "true"
         
         # System prompt for the assistant
         self.system_prompt = """You are a helpful AI assistant for CapitalOne. You can help users with:
@@ -53,15 +67,16 @@ Please be helpful, accurate, and conversational. If you need more information to
 
     async def _process_message(self, message: str, conversation_history: list = None) -> AsyncGenerator[Tuple[str, bool], None]:
         """
-        Core logic to process the message using either multi-agent system or single LangGraph agent.
+        Core logic to process the message using smart routing, multi-agent system, or single LangGraph agent.
         """
         try:
             logger.info(f"_process_message called with message: {message}")
             logger.info(f"_process_message conversation_history length: {len(conversation_history) if conversation_history else 0}")
             logger.info(f"Using multi-agent mode: {self.use_multi_agent}")
             
-            # Choose processing method based on configuration
+            # Choose processing method based on configuration for complex tasks
             if self.use_multi_agent and multi_agent_service.is_available():
+                logger.info(f"Using multi-agent system for message: '{message}'")
                 # Create a ChatRequest for the multi-agent service
                 from src.models.chat_request import ChatRequest
                 
@@ -83,7 +98,8 @@ Please be helpful, accurate, and conversational. If you need more information to
                 async for chunk, is_complete in multi_agent_service.generate_streaming_response(request):
                     yield (chunk, is_complete)
             else:
-                # Use single LangGraph Agent
+                logger.info(f"Using single LangGraph agent for message: '{message}' (multi_agent: {self.use_multi_agent}, available: {multi_agent_service.is_available()})")
+                # Use single LangGraph Agent (main LLM)
                 async for chunk, is_complete in self.agent.stream_invoke(message, conversation_history):
                     yield (chunk, is_complete)
             

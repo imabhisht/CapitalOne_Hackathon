@@ -6,10 +6,14 @@ import logging
 import os
 from typing import List, AsyncGenerator, Tuple
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from dotenv import load_dotenv
 
 from src.llm.openai_compatible_llm import OpenAICompatibleLLM
 from src.agents.agent_coordinator import AgentCoordinator
 from src.models.chat_request import ChatRequest
+
+# Load environment variables
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +21,13 @@ class MultiAgentService:
     """Service for managing multi-agent conversations."""
     
     def __init__(self):
+        print("INIT")
         self.coordinator = None
         self._initialize_coordinator()
     
     def _initialize_coordinator(self):
         """Initialize the agent coordinator with LLM."""
+        print("Initializing Multi-Agent Coordinator")
         try:
             # Get API key from environment
             api_key = os.getenv("LLM_API_KEY")
@@ -35,9 +41,16 @@ class MultiAgentService:
                 api_key=api_key,
                 base_url=os.getenv("LLM_BASE_URL")
             )
-            
-            # Initialize coordinator
-            self.coordinator = AgentCoordinator(llm)
+
+            # Initialize Small LLM
+            small_llm = OpenAICompatibleLLM(
+                model=os.getenv("SMALL_LLM_MODEL", "gemma3:270m"),
+                api_key=os.getenv("SMALL_LLM_API_KEY"),
+                base_url=os.getenv("SMALL_LLM_BASE_URL")
+            )
+
+            # Initialize coordinator (only pass the main LLM for now)
+            self.coordinator = AgentCoordinator(llm=llm, small_llm=small_llm)
             logger.info("Multi-agent coordinator initialized successfully")
             
         except Exception as e:

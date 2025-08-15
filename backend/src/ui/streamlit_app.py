@@ -359,6 +359,41 @@ with st.sidebar:
         st.session_state.chat_session_id = None
         st.rerun()
     
+    # Smart Routing Settings
+    with st.expander("🧠 Smart Routing"):
+        st.markdown("**Routing helps speed up responses by using a smaller, faster model for simple tasks.**")
+        
+        # Test routing for a message
+        test_message = st.text_input("Test routing for message:", placeholder="Enter a message to see routing decision...")
+        
+        if test_message and st.button("🔍 Analyze Routing"):
+            try:
+                response = requests.post(
+                    f"{api_url}/routing/analyze",
+                    json={"message": test_message},
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    routing_data = response.json()
+                    routing_info = routing_data["routing_decision"]
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Classification", routing_info["classification"])
+                        st.metric("Confidence", f"{routing_info['confidence']:.2f}")
+                    with col2:
+                        st.metric("Selected Model", routing_info["selected_model"])
+                        st.metric("Word Count", routing_info["word_count"])
+                    
+                    if routing_info["use_small_llm"]:
+                        st.success("✅ Will use fast small model")
+                    else:
+                        st.info("🔄 Will use main model")
+                else:
+                    st.error(f"Routing analysis failed: {response.status_code}")
+            except Exception as e:
+                st.error(f"Error analyzing routing: {e}")
+    
     # Language selection (for future use)
     language = st.selectbox(
         "Language",
@@ -523,6 +558,22 @@ if prompt := st.chat_input("Ask me anything..."):
                     
                     # Set the response for chat history
                     full_response = response_for_history
+                    
+                    # Show routing info if available
+                    try:
+                        routing_response = requests.post(
+                            f"{API_BASE_URL}/routing/analyze",
+                            json={"message": prompt},
+                            timeout=2
+                        )
+                        if routing_response.status_code == 200:
+                            routing_data = routing_response.json()
+                            routing_info = routing_data["routing_decision"]
+                            
+                            # model_used = "🚀 Small Model" if routing_info["use_small_llm"] else "🧠 Main Model"
+                            # st.caption(f"*Processed with {model_used} (Classification: {routing_info['classification']}, Confidence: {routing_info['confidence']:.2f})*")
+                    except:
+                        pass  # Don't show routing info if it fails
                     
                 else:
                     error_message = f"❌ API Error: {response.status_code} - {response.text}"

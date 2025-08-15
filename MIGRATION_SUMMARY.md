@@ -206,6 +206,46 @@ The system maintains backward compatibility by:
 
 3. Test with your preferred provider using the new configuration
 
+## Recent Tool Registry Enhancements
+
+### Enhanced Tool Registry System
+
+The tool registry has been significantly improved to provide better compatibility with LangChain tools and more flexible tool invocation patterns:
+
+#### Key Improvements Made
+
+- **Enhanced LangChain Support**: Improved handling of LangChain tools with proper `tool_input` parameter formatting
+- **Fixed Empty Parameter Handling**: Corrected empty parameter case to properly pass `tool_input=""` for better LangChain compatibility
+- **Flexible Invocation Patterns**: Support for multiple tool invocation methods:
+  - `run(tool_input=param)` for LangChain tools with single parameters
+  - `run(tool_input="")` for LangChain tools with empty parameters (improved compatibility)
+  - `run(**kwargs)` for LangChain tools with keyword arguments  
+  - `invoke({"tool_input": param})` for LangChain tools with dictionary parameters
+  - `invoke(kwargs)` for advanced LangChain tools
+  - Direct function calls for simple tools
+- **Tool Adapter Pattern**: Unified interface for all tool types with automatic parameter handling
+- **Backward Compatibility**: Existing tools continue to work without changes
+- **Better Error Handling**: Clear error messages for unsupported tool types
+
+#### Files Updated
+
+- **backend/src/agents/tools/registry.py**: Enhanced `_call_target` method with improved LangChain tool support
+- **Documentation**: Updated README files to reflect new capabilities and usage patterns
+
+#### Benefits
+
+1. **Better LangChain Integration**: Seamless compatibility with LangChain tool ecosystem
+2. **Flexible Tool Development**: Support for multiple tool implementation patterns
+3. **Improved Reliability**: Better error handling and parameter validation
+4. **Developer Experience**: Clearer interfaces and better debugging support
+5. **Future-Proof**: Extensible architecture for new tool types
+
+#### Migration Notes
+
+- **No Breaking Changes**: Existing tools continue to work without modification
+- **Enhanced Functionality**: Tools now support more invocation patterns automatically
+- **Better Error Messages**: Improved debugging information for tool issues
+
 ## Recent API Compatibility Updates
 
 ### OpenAI API Endpoints Added
@@ -255,6 +295,50 @@ Added comprehensive Docker setup with:
 - Open WebUI service configured to use the agriculture AI backend
 - Network configuration for service communication
 - Volume management for persistent data
+
+## Intelligent LLM Routing Service
+
+### New Feature: Smart Model Selection
+
+Added a new routing service that intelligently selects between different LLM models based on query complexity:
+
+#### Key Features
+- **Automatic Classification**: Analyzes query complexity using pattern matching, keywords, and message length
+- **Cost Optimization**: Routes simple queries to smaller, faster models
+- **Performance Optimization**: Uses larger models only when needed for complex reasoning
+- **Dual Model Support**: Configurable main and small LLM models
+- **Debugging Support**: Detailed routing information for development and monitoring
+
+#### Configuration
+```env
+# Main LLM for complex tasks
+LLM_MODEL=gpt-4
+LLM_API_KEY=your_api_key
+LLM_BASE_URL=https://api.openai.com/v1
+
+# Small LLM for simple tasks
+SMALL_LLM_MODEL=gpt-3.5-turbo
+SMALL_LLM_API_KEY=your_api_key
+SMALL_LLM_BASE_URL=https://api.openai.com/v1
+```
+
+#### Routing Logic
+- **Simple Queries**: Greetings, basic questions, short responses → Small model
+- **Complex Queries**: Analysis, explanations, detailed reasoning → Main model
+- **Confidence Scoring**: Each classification includes a confidence score (0.0-1.0)
+
+#### Implementation
+- **File**: `backend/src/services/routing_service.py`
+- **Class**: `RoutingService`
+- **Global Instance**: `routing_service`
+- **Integration**: Ready for integration with chat service and multi-agent system
+
+#### Benefits
+1. **Cost Reduction**: Significant cost savings by using smaller models for simple tasks
+2. **Performance**: Faster responses for basic queries
+3. **Scalability**: Better resource utilization across different query types
+4. **Flexibility**: Easy to configure different model combinations
+5. **Monitoring**: Built-in routing information for analytics
 
 ## Testing
 

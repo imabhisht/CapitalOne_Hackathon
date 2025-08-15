@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iterative Agent Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .response-area {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+            min-height: 100px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .loading {
+            color: #007bff;
+            font-style: italic;
+        }
+        .error {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .success {
+            color: #155724;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .quick-tests {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .quick-test-btn {
+            background-color: #28a745;
+            padding: 8px 12px;
+            font-size: 12px;
+            text-align: left;
+        }
+        .quick-test-btn:hover {
+            background-color: #218838;
+        }
+        .routing-info {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Iterative Agent Test Interface</h1>
+        
+        <!-- Quick Test Buttons -->
+        <div class="test-section">
+            <h3>🚀 Quick Tests</h3>
+            <div class="quick-tests">
+                <button class="quick-test-btn" onclick="runQuickTest('What is the weather like today?')">
+                    Complex: Weather Query (No Location)
+                </button>
+                <button class="quick-test-btn" onclick="runQuickTest('What is the weather in Mumbai?')">
+                    Simple: Weather Query (With Location)
+                </button>
+                <button class="quick-test-btn" onclick="runQuickTest('Calculate the ROI for a 10-acre organic farm with current market prices')">
+                    Complex: Farm ROI Analysis
+                </button>
+                <button class="quick-test-btn" onclick="runQuickTest('Help me plan a complete farming strategy including weather, costs, and crop selection')">
+                    Complex: Complete Farm Planning
+                </button>
+                <button class="quick-test-btn" onclick="runQuickTest('Find the current weather and determine if it is good for planting tomatoes')">
+                    Complex: Weather + Agriculture
+                </button>
+                <button class="quick-test-btn" onclick="runQuickTest('Research and compare the profitability of growing corn vs soybeans')">
+                    Complex: Crop Comparison
+                </button>
+            </div>
+        </div>
+
+        <!-- Custom Query Test -->
+        <div class="test-section">
+            <h3>💬 Custom Query Test</h3>
+            <div class="input-group">
+                <label for="customQuery">Enter your query:</label>
+                <textarea id="customQuery" placeholder="Enter a question or task for the iterative agent..."></textarea>
+            </div>
+            <button onclick="testRouting()" id="routingBtn">🔍 Test Routing</button>
+            <button onclick="testIterativeStream()" id="streamBtn">🔄 Test Iterative Stream</button>
+            <button onclick="testDirectStream()" id="directBtn">🎯 Test Direct Multi-Agent</button>
+            <button onclick="testChatStream()" id="chatBtn">💬 Test Chat Service</button>
+            <button onclick="debugFlow()" id="debugBtn">🐛 Debug Flow</button>
+            <button onclick="clearResponse()">🗑️ Clear</button>
+            
+            <div id="routingInfo" class="routing-info" style="display: none;"></div>
+            <div id="responseArea" class="response-area"></div>
+        </div>
+
+        <!-- System Status -->
+        <div class="test-section">
+            <h3>📊 System Status</h3>
+            <button onclick="checkStatus()">Check System Status</button>
+            <div id="statusArea" class="response-area"></div>
+        </div>
+    </div>
+
+    <script>
+        let isStreaming = false;
+
+        function runQuickTest(query) {
+            document.getElementById('customQuery').value = query;
+            testIterativeStream();
+        }
+
+        async function testRouting() {
+            const query = document.getElementById('customQuery').value.trim();
+            if (!query) {
+                alert('Please enter a query first');
+                return;
+            }
+
+            const routingBtn = document.getElementById('routingBtn');
+            const routingInfo = document.getElementById('routingInfo');
+            
+            routingBtn.disabled = true;
+            routingBtn.textContent = '🔍 Analyzing...';
+            
+            try {
+                const response = await fetch('/agents/iterative/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: query })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    routingInfo.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                    routingInfo.className = 'routing-info error';
+                } else {
+                    routingInfo.innerHTML = `
+                        <strong>Routing Decision:</strong><br>
+                        Mode: ${data.routing_decision.mode || 'SIMPLE'}<br>
+                        Agents: ${JSON.stringify(data.routing_decision.agents || [])}<br>
+                        Parallel: ${data.routing_decision.parallel || false}<br>
+                        Reasoning: ${data.routing_decision.reasoning || 'N/A'}<br>
+                        <br>
+                        <strong>System Info:</strong><br>
+                        Iterative Available: ${data.iterative_available}<br>
+                        Max Iterations: ${data.max_iterations || 'N/A'}
+                    `;
+                    routingInfo.className = 'routing-info success';
+                }
+                
+                routingInfo.style.display = 'block';
+                
+            } catch (error) {
+                routingInfo.innerHTML = `<strong>Network Error:</strong> ${error.message}`;
+                routingInfo.className = 'routing-info error';
+                routingInfo.style.display = 'block';
+            } finally {
+                routingBtn.disabled = false;
+                routingBtn.textContent = '🔍 Test Routing';
+            }
+        }
+
+        async function streamFromEndpoint(endpoint, buttonId, buttonText) {
+            if (isStreaming) {
+                return;
+            }
+
+            const query = document.getElementById('customQuery').value.trim();
+            if (!query) {
+                alert('Please enter a query first');
+                return;
+            }
+
+            const button = document.getElementById(buttonId);
+            const responseArea = document.getElementById('responseArea');
+            
+            isStreaming = true;
+            button.disabled = true;
+            button.textContent = buttonText + '...';
+            responseArea.innerHTML = '';
+            responseArea.className = 'response-area loading';
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: query })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                
+                                if (data.error) {
+                                    responseArea.className = 'response-area error';
+                                    responseArea.innerHTML += `ERROR: ${data.content}\n`;
+                                } else {
+                                    responseArea.className = 'response-area';
+                                    responseArea.innerHTML += data.content;
+                                }
+
+                                if (data.is_complete) {
+                                    responseArea.className = 'response-area success';
+                                    break;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing JSON:', e);
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                responseArea.innerHTML = `Network Error: ${error.message}`;
+                responseArea.className = 'response-area error';
+            } finally {
+                isStreaming = false;
+                button.disabled = false;
+                button.textContent = buttonText;
+            }
+        }
+
+        async function testIterativeStream() {
+            await streamFromEndpoint('/agents/iterative/stream', 'streamBtn', '🔄 Test Iterative Stream');
+        }
+
+        async function testDirectStream() {
+            await streamFromEndpoint('/agents/direct/stream', 'directBtn', '🎯 Test Direct Multi-Agent');
+        }
+
+        async function testChatStream() {
+            if (isStreaming) {
+                return;
+            }
+
+            const query = document.getElementById('customQuery').value.trim();
+            if (!query) {
+                alert('Please enter a query first');
+                return;
+            }
+
+            const button = document.getElementById('chatBtn');
+            const responseArea = document.getElementById('responseArea');
+            
+            isStreaming = true;
+            button.disabled = true;
+            button.textContent = '💬 Test Chat Service...';
+            responseArea.innerHTML = '';
+            responseArea.className = 'response-area loading';
+
+            try {
+                // Use the correct ChatRequest format
+                const response = await fetch('/chat/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        message: query,
+                        session_id: null,
+                        user_id: null
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                
+                                if (data.error) {
+                                    responseArea.className = 'response-area error';
+                                    responseArea.innerHTML += `ERROR: ${data.content}\n`;
+                                } else {
+                                    responseArea.className = 'response-area';
+                                    responseArea.innerHTML += data.content;
+                                }
+
+                                if (data.is_complete) {
+                                    responseArea.className = 'response-area success';
+                                    break;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing JSON:', e);
+                            }
+                        }
+                    }
+                }
+
+            } catch (error) {
+                responseArea.innerHTML = `Network Error: ${error.message}`;
+                responseArea.className = 'response-area error';
+            } finally {
+                isStreaming = false;
+                button.disabled = false;
+                button.textContent = '💬 Test Chat Service';
+            }
+        }
+
+        async function checkStatus() {
+            const statusArea = document.getElementById('statusArea');
+            statusArea.innerHTML = 'Checking system status...';
+            statusArea.className = 'response-area loading';
+
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                statusArea.innerHTML = `
+System Status: ${data.status}
+MongoDB: ${data.mongodb}
+Chat Service: ${data.chat_service}
+Multi-Agent Service: ${data.multi_agent_service}
+
+Environment Variables:
+- LLM_MODEL: ${process.env.LLM_MODEL || 'Not set'}
+- SMALL_LLM_MODEL: ${process.env.SMALL_LLM_MODEL || 'Not set'}
+                `;
+                statusArea.className = 'response-area success';
+                
+            } catch (error) {
+                statusArea.innerHTML = `Error checking status: ${error.message}`;
+                statusArea.className = 'response-area error';
+            }
+        }
+
+        async function debugFlow() {
+            const query = document.getElementById('customQuery').value.trim();
+            if (!query) {
+                alert('Please enter a query first');
+                return;
+            }
+
+            const debugBtn = document.getElementById('debugBtn');
+            const responseArea = document.getElementById('responseArea');
+            
+            debugBtn.disabled = true;
+            debugBtn.textContent = '🐛 Debugging...';
+            responseArea.innerHTML = '';
+            responseArea.className = 'response-area loading';
+            
+            try {
+                const response = await fetch('/debug/flow', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: query })
+                });
+
+                const data = await response.json();
+                
+                responseArea.innerHTML = `
+🐛 DEBUG INFORMATION:
+
+Message: "${data.message}"
+
+Chat Service Config:
+- Use Multi-Agent: ${data.chat_service_config.use_multi_agent}
+- Use Smart Routing: ${data.chat_service_config.use_smart_routing}
+
+System Status:
+- Multi-Agent Available: ${data.multi_agent_available}
+- Coordinator Available: ${data.coordinator_available}
+- Iterative Agent Available: ${data.iterative_agent_available}
+
+Routing Decision:
+${data.routing_decision ? JSON.stringify(data.routing_decision, null, 2) : 'No routing decision available'}
+
+${data.routing_error ? `Routing Error: ${data.routing_error}` : ''}
+${data.error ? `Error: ${data.error}` : ''}
+                `;
+                responseArea.className = 'response-area success';
+                
+            } catch (error) {
+                responseArea.innerHTML = `Debug Error: ${error.message}`;
+                responseArea.className = 'response-area error';
+            } finally {
+                debugBtn.disabled = false;
+                debugBtn.textContent = '🐛 Debug Flow';
+            }
+        }
+
+        function clearResponse() {
+            document.getElementById('responseArea').innerHTML = '';
+            document.getElementById('responseArea').className = 'response-area';
+            document.getElementById('routingInfo').style.display = 'none';
+        }
+
+        // Auto-focus on the query input
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('customQuery').focus();
+        });
+    </script>
+</body>
+</html>

@@ -6,6 +6,7 @@ A comprehensive AI-powered assistant for agriculture data analysis and insights,
 
 - **Multi-Agent System**: LangGraph-powered agents with tool calling capabilities
 - **OpenAI-Compatible LLM**: Supports multiple LLM providers (Gemini, OpenAI, Claude, local models) via OpenAI SDK
+- **Intelligent LLM Routing**: Automatic routing between small/fast and large/complex models based on query complexity
 - **OpenAI API Compatibility**: Full OpenAI API-compatible endpoints for third-party integrations
 - **Modern Streamlit UI**: Interactive chat interface with real-time streaming, custom styling, and mobile-responsive design
 - **Multiple Chat Interfaces**: 
@@ -27,6 +28,7 @@ A comprehensive AI-powered assistant for agriculture data analysis and insights,
 │   │   ├── agents/            # Multi-agent system and tools
 │   │   │   ├── base_agent.py          # Abstract base class for all agents
 │   │   │   ├── langraph_agent.py      # LangGraph workflow implementation
+│   │   │   ├── iterative_agent.py     # Iterative reasoning agent with controlled loops
 │   │   │   ├── intent_gathering_agent.py  # Intent clarification agent
 │   │   │   ├── agent_coordinator.py   # Multi-agent coordination and routing
 │   │   │   ├── organic_farming_agent.py   # Organic farming specialist
@@ -43,7 +45,8 @@ A comprehensive AI-powered assistant for agriculture data analysis and insights,
 │   │   ├── models/           # Data models and schemas
 │   │   ├── services/         # Business logic services
 │   │   │   ├── chat_service.py       # Main chat orchestration
-│   │   │   └── multi_agent_service.py # Multi-agent service layer
+│   │   │   ├── multi_agent_service.py # Multi-agent service layer
+│   │   │   └── routing_service.py    # Intelligent LLM routing service
 │   │   ├── ui/               # Streamlit UI components
 │   │   └── workflow/         # Multi-agent workflows
 │   ├── static/               # Static web assets
@@ -62,15 +65,17 @@ A comprehensive AI-powered assistant for agriculture data analysis and insights,
 1. **FastAPI Application** (`app.py`): Main web server with health checks and CORS
 2. **Chat Service** (`chat_service.py`): Orchestrates LLM calls and session management
 3. **Multi-Agent Service** (`multi_agent_service.py`): Service layer for multi-agent system coordination
-4. **Agent Coordinator** (`agent_coordinator.py`): Routes queries to appropriate specialized agents
-5. **Base Agent** (`base_agent.py`): Abstract base class providing common agent functionality
-6. **Specialized Agents**: Domain-specific agents (organic farming, financial, weather, general chat)
-7. **LangGraph Agent** (`langraph_agent.py`): Multi-agent workflow with tool calling
-8. **Intent Gathering Agent** (`intent_gathering_agent.py`): Clarifies user intent through conversation
-9. **Multi-Agent Config** (`multi_agent_config.py`): Configuration management for the multi-agent system
-10. **OpenAI-Compatible LLM** (`openai_compatible_llm.py`): Generic LLM wrapper supporting multiple providers via OpenAI SDK
-11. **MongoDB Service** (`mongo_service.py`): Database operations and session storage
-12. **Streamlit UI** (`streamlit_app.py`): Modern interactive chat interface with real-time streaming
+4. **Routing Service** (`routing_service.py`): Intelligent routing between different LLM models based on query complexity
+5. **Agent Coordinator** (`agent_coordinator.py`): Routes queries to appropriate specialized agents
+6. **Base Agent** (`base_agent.py`): Abstract base class providing common agent functionality
+7. **Specialized Agents**: Domain-specific agents (organic farming, financial, weather, general chat)
+8. **LangGraph Agent** (`langraph_agent.py`): Multi-agent workflow with tool calling
+9. **Iterative Agent** (`iterative_agent.py`): Controlled iterative reasoning agent for complex problem-solving
+10. **Intent Gathering Agent** (`intent_gathering_agent.py`): Clarifies user intent through conversation
+10. **Multi-Agent Config** (`multi_agent_config.py`): Configuration management for the multi-agent system
+11. **OpenAI-Compatible LLM** (`openai_compatible_llm.py`): Generic LLM wrapper supporting multiple providers via OpenAI SDK
+12. **MongoDB Service** (`mongo_service.py`): Database operations and session storage
+13. **Streamlit UI** (`streamlit_app.py`): Modern interactive chat interface with real-time streaming
 
 ### Data Flow
 
@@ -414,7 +419,7 @@ The system features a sophisticated multi-agent architecture with specialized ag
 
 ### Agent Architecture
 
-- **Agent Coordinator**: Central routing system that determines which agents should handle queries
+- **Agent Coordinator**: Enhanced routing system with intelligent mode selection (SIMPLE vs ITERATIVE) and weather query intelligence
 - **Base Agent Class**: Abstract base class (`BaseAgent`) providing common functionality for all specialized agents
 - **Specialized Agents**: Domain-specific agents inheriting from `BaseAgent`:
   - **Organic Farming Agent**: Specialized in sustainable agriculture practices
@@ -435,6 +440,38 @@ The `BaseAgent` class provides:
 - **Error Handling**: Graceful error recovery and user feedback
 - **Conversation Management**: Automatic conversation history handling (last 5 messages)
 
+### Iterative Agent
+
+The system includes a sophisticated iterative agent (`iterative_agent.py`) that can solve complex problems through controlled iteration, automatically invoked by the enhanced routing system:
+
+- **Intelligent Routing Integration**: Automatically activated for complex queries, weather queries without location, and real-time data requests
+- **Controlled Iteration**: Limits the number of reasoning loops to prevent excessive LLM calls (default: 5 iterations)
+- **Step-by-Step Reasoning**: Follows a structured THOUGHT → ACTION → OBSERVATION pattern
+- **Tool Integration**: Can call tools strategically during the reasoning process
+- **Streaming Support**: Provides real-time updates during each iteration step
+- **Final Answer Detection**: Automatically detects when sufficient information is gathered
+- **Error Recovery**: Graceful handling of tool failures and iteration limits
+- **Conversation Context**: Maintains conversation history throughout the iterative process
+
+#### Iterative Agent Features
+
+- **IterationStep Tracking**: Each step includes thought process, actions taken, and observations
+- **Strategic Tool Usage**: Only calls tools when necessary to solve the problem
+- **Maximum Iteration Control**: Prevents infinite loops with configurable iteration limits
+- **Clean Streaming Experience**: Minimal progress indicators with word-by-word final answer delivery
+- **Response Parsing**: Intelligent parsing of LLM responses for THOUGHT, ACTION, and FINAL_ANSWER
+- **Tool Execution**: Safe tool execution with error handling and fallback strategies
+
+#### Usage Examples
+
+The iterative agent is automatically activated for complex queries that require multiple steps:
+
+- "Analyze the weather patterns and recommend the best crops for maximum profit"
+- "What's the weather today?" (automatically detects need for location and gets current weather)
+- "Calculate the irrigation costs and determine the optimal planting schedule"
+- "Research organic farming methods and create a financial plan for implementation"
+- "Is it good weather for planting tomatoes?" (gets location, weather, and provides analysis)
+
 ### LLM Integration
 
 - **Multi-Provider Support**: Works with any OpenAI SDK-compatible LLM provider
@@ -448,6 +485,7 @@ The `BaseAgent` class provides:
 - **Location Tool**: Get location information for Indian districts
 - **Weather Tool**: Retrieve weather data and forecasts
 - **Calculator Tool**: Perform mathematical calculations
+- **Enhanced Tool Registry**: Improved LangChain tool compatibility with flexible invocation patterns and fixed empty parameter handling
 - **Debug Logging**: Enhanced tool visibility for development
 
 ### Tool Usage Examples
@@ -491,6 +529,8 @@ Run the test suite to verify functionality:
 cd backend
 python test_agent.py        # Test agent functionality
 python test_langraph.py     # Test LangGraph workflows
+python test_iterative_agent.py  # Test iterative reasoning agent
+python test_routing_service.py  # Test intelligent LLM routing
 python simple_test.py       # Basic system tests
 python test_conversation_history.py  # Test conversation history functionality
 ```
@@ -607,6 +647,49 @@ For issues and questions:
 
 ## 🧠 LLM Integration
 
+### Intelligent LLM Routing
+
+The system features an intelligent routing service that automatically selects the most appropriate LLM model based on query complexity:
+
+#### Routing Logic
+- **Simple Queries**: Routed to small, fast models for quick responses (greetings, basic questions, short responses)
+- **Complex Queries**: Routed to larger, more capable models for detailed analysis and complex reasoning
+- **Automatic Classification**: Uses pattern matching, keyword analysis, and message length to determine complexity
+- **Cost Optimization**: Reduces costs by using smaller models when appropriate
+- **Performance Optimization**: Faster responses for simple queries, thorough analysis for complex ones
+
+#### Configuration
+The routing service supports dual-model configuration:
+
+```env
+# Main LLM for complex tasks
+LLM_MODEL=gpt-4
+LLM_API_KEY=your_api_key
+LLM_BASE_URL=https://api.openai.com/v1
+
+# Small LLM for simple tasks and routing decisions
+SMALL_LLM_MODEL=gpt-3.5-turbo
+SMALL_LLM_API_KEY=your_api_key
+SMALL_LLM_BASE_URL=https://api.openai.com/v1
+```
+
+#### Routing Examples
+- **Simple**: "Hello", "Thank you", "What's the weather in Mumbai?" → Small model
+- **Complex**: "Analyze crop yield trends", "What's the weather today?" (no location), "Write a financial report" → Main model
+- **Weather Intelligence**: 
+  - "What's the weather in Baroda?" → SIMPLE mode (location specified)
+  - "What's the weather today?" → ITERATIVE mode (needs location detection)
+  - "Is it good weather for planting?" → ITERATIVE mode (needs location + analysis)
+
+#### Routing Information
+The service provides detailed routing information for debugging:
+```python
+from src.services.routing_service import routing_service
+
+info = routing_service.get_routing_info("How do I optimize crop yields?")
+# Returns: classification, confidence, selected_model, etc.
+```
+
 ### OpenAI-Compatible LLM Implementation
 
 The system uses a generic OpenAI-compatible LLM wrapper that supports multiple providers:
@@ -666,6 +749,11 @@ LLM_MODEL=gpt-3.5-turbo
 LLM_API_KEY=your_api_key
 LLM_BASE_URL=https://api.openai.com/v1
 
+# Small LLM for routing and simple tasks (optional)
+SMALL_LLM_MODEL=gpt-3.5-turbo
+SMALL_LLM_API_KEY=your_api_key
+SMALL_LLM_BASE_URL=https://api.openai.com/v1
+
 # Database
 MONGODB_URI=mongodb://localhost:27017/
 
@@ -682,6 +770,11 @@ GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 
 ## 🔄 Recent Updates
 
+- **Improved Iterative Agent UX**: Enhanced streaming experience with minimal visual clutter and natural word-by-word final answer delivery
+- **Enhanced Agent Routing**: Improved Agent Coordinator with intelligent weather query handling and real-time data detection for better SIMPLE vs ITERATIVE mode selection
+- **Iterative Agent**: Added sophisticated iterative reasoning agent (`iterative_agent.py`) with controlled iteration loops, step-by-step problem solving, strategic tool usage, streaming support, and automatic final answer detection for complex multi-step queries
+- **Enhanced Tool Registry**: Improved tool registry system with better LangChain compatibility, flexible invocation patterns, fixed empty parameter handling, and unified tool interface through ToolAdapter pattern
+- **Intelligent LLM Routing**: Added smart routing service that automatically selects appropriate LLM models based on query complexity for cost and performance optimization
 - **Streamlit Architecture Improvement**: Updated Streamlit UI to communicate with FastAPI backend via HTTP API calls for better service separation and deployment flexibility
 - **Enhanced Error Handling**: Added comprehensive error handling with user-friendly messages and troubleshooting guidance for backend connectivity issues
 - **Robust Session Management**: Improved session handling with automatic session ID generation and persistent conversation history
@@ -710,4 +803,5 @@ GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 - **Tool Call Detection**: Implemented regex-based tool call extraction for reliable tool execution
 - **Conversation Continuity**: Seamless chat experience with proper session handling across multiple messages
 - **Error Handling**: Improved error handling and state management throughout the system
+- **Enhanced Tool Registry**: Improved tool registry system with better LangChain compatibility, flexible invocation patterns, fixed empty parameter handling, and unified tool interface
 - **Documentation**: Updated documentation for better developer experience and accurate setup instructions

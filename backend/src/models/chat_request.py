@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
 
@@ -12,6 +12,7 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = None
     user_id: Optional[str] = None
     user_location: Optional[Location] = None
+    conversation_history: Optional[List[Dict[str, Any]]] = None
 
 class ChatResponse(BaseModel):
     content: str

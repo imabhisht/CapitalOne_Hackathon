@@ -1,5 +1,6 @@
 """
 Agent Coordinator - Routes queries to appropriate specialized agents and can use multiple agents in parallel.
+Enhanced with iterative processing capabilities.
 """
 
 import logging
@@ -12,6 +13,7 @@ from .organic_farming_agent import OrganicFarmingAgent
 from .financial_agent import FinancialAgent
 from .weather_agent import WeatherAgent
 from .general_chat_agent import GeneralChatAgent
+from .iterative_agent import IterativeAgent
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +22,10 @@ class AgentCoordinator:
     Coordinates multiple specialized agents and routes queries appropriately.
     Can use multiple agents in parallel for complex queries.
     """
-    
-    def __init__(self, llm: OpenAICompatibleLLM):
+
+    def __init__(self, llm: OpenAICompatibleLLM, small_llm: OpenAICompatibleLLM):
         self.llm = llm
+        self.small_llm = small_llm
         
         # Initialize specialized agents
         self.agents = {
@@ -32,29 +35,49 @@ class AgentCoordinator:
             "general": GeneralChatAgent(llm)
         }
         
+        # Initialize iterative agent for complex tasks
+        self.iterative_agent = IterativeAgent(llm, max_iterations=5)
+        
         # Routing system prompt
-        self.routing_prompt = """You are an intelligent query router that determines which specialized agents should handle a user query.
+        self.routing_prompt = """You are an intelligent query router that determines how to handle a user query.
 
-Available agents:
+Available processing modes:
+1. SIMPLE - Use specialized agents for straightforward queries
+2. ITERATIVE - Use iterative processing for complex multi-step tasks that require tool usage and reasoning
+
+Available agents (for SIMPLE mode):
 1. organic_farming - Handles organic farming, agriculture, crops, soil, pest management, sustainable farming
 2. financial - Handles financial advice, calculations, budgeting, investments, loans, agricultural economics
 3. weather - Handles weather information, forecasts, agricultural weather planning
 4. general - Handles general conversations and queries not covered by other agents
 
-Analyze the user query and determine:
-1. Which agent(s) should handle this query
-2. Whether multiple agents should work together (for complex queries)
-3. The priority order if multiple agents are needed
+Use ITERATIVE mode for queries that:
+- Require multiple steps or tools to complete
+- Need data gathering and analysis
+- Involve complex problem-solving
+- Require calculations with external data
+- Need to combine information from multiple sources
+- Ask about weather without specifying location (need to get location first)
+- Require real-time data or current information
+
+Use SIMPLE mode for:
+- Direct questions with straightforward answers
+- General conversations
+- Single-domain expertise queries
+- Weather queries with specific location already provided
 
 Respond in this format:
-AGENTS: [agent_name1, agent_name2, ...]
-PARALLEL: [yes/no] - whether agents should work in parallel
+MODE: [SIMPLE/ITERATIVE]
+AGENTS: [agent_name1, agent_name2, ...] (only for SIMPLE mode)
+PARALLEL: [yes/no] - whether agents should work in parallel (only for SIMPLE mode)
 REASONING: Brief explanation of your routing decision
 
 Examples:
-- "What's the weather for farming?" -> AGENTS: [weather], PARALLEL: no
-- "How much profit can I make from organic tomatoes?" -> AGENTS: [organic_farming, financial], PARALLEL: yes
-- "Hello, how are you?" -> AGENTS: [general], PARALLEL: no"""
+- "What's the weather today?" -> MODE: ITERATIVE (needs location detection and weather data)
+- "What's the weather in New York?" -> MODE: SIMPLE, AGENTS: [weather], PARALLEL: no
+- "Calculate the ROI for a 10-acre organic farm with current market prices" -> MODE: ITERATIVE
+- "Hello, how are you?" -> MODE: SIMPLE, AGENTS: [general], PARALLEL: no
+- "Help me plan a complete farming strategy including weather, costs, and crop selection" -> MODE: ITERATIVE"""
     
     async def route_query(self, query: str) -> Dict[str, Any]:
         """Route a query to determine which agents should handle it."""
@@ -63,12 +86,15 @@ Examples:
                 SystemMessage(content=self.routing_prompt),
                 HumanMessage(content=f"Route this query: {query}")
             ]
-            
-            response = self.llm.invoke(messages)
+
+            response = self.small_llm.invoke(messages)
             routing_decision = self._parse_routing_response(response.content)
+            logger.info(f"LLM routing response: {response.content}")
+            logger.info(f"Parsed routing decision: {routing_decision}")
             
             # Fallback routing if parsing fails
-            if not routing_decision["agents"]:
+            if not routing_decision.get("mode") and not routing_decision.get("agents"):
+                logger.info("Using fallback routing due to parsing failure")
                 routing_decision = self._fallback_routing(query)
             
             return routing_decision
@@ -81,11 +107,17 @@ Examples:
         """Parse the routing response from the LLM."""
         import re
         
+        mode = "SIMPLE"  # default
         agents = []
         parallel = False
         reasoning = ""
         
-        # Extract agents
+        # Extract mode
+        mode_match = re.search(r'MODE:\s*(SIMPLE|ITERATIVE)', response, re.IGNORECASE)
+        if mode_match:
+            mode = mode_match.group(1).upper()
+        
+        # Extract agents (only relevant for SIMPLE mode)
         agents_match = re.search(r'AGENTS:\s*\[(.*?)\]', response)
         if agents_match:
             agents_str = agents_match.group(1)
@@ -102,6 +134,7 @@ Examples:
             reasoning = reasoning_match.group(1).strip()
         
         return {
+            "mode": mode,
             "agents": agents,
             "parallel": parallel,
             "reasoning": reasoning
@@ -111,7 +144,34 @@ Examples:
         """Fallback routing based on keyword matching."""
         query_lower = query.lower()
         
-        # Check each agent's keywords
+        # Check for complex task indicators
+        complex_indicators = [
+            "calculate", "analyze", "plan", "compare", "research", 
+            "find out", "determine", "evaluate", "optimize", "strategy"
+        ]
+        
+        # Check for weather queries without specific location
+        weather_without_location = (
+            "weather" in query_lower and 
+            not any(location in query_lower for location in [
+                "in ", "at ", "for ", "new york", "london", "paris", "tokyo", 
+                "mumbai", "delhi", "bangalore", "chennai", "kolkata", "hyderabad",
+                "baroda", "vadodara", "ahmedabad", "surat", "rajkot"
+            ])
+        )
+        
+        is_complex = any(indicator in query_lower for indicator in complex_indicators) or weather_without_location
+        
+        if is_complex:
+            logger.info(f"Fallback routing: Query '{query}' classified as complex (weather_without_location: {weather_without_location})")
+            return {
+                "mode": "ITERATIVE",
+                "agents": [],
+                "parallel": False,
+                "reasoning": f"Fallback routing detected complex task requiring iterative processing. Weather without location: {weather_without_location}"
+            }
+        
+        # Check each agent's keywords for simple routing
         matching_agents = []
         for agent_name, agent in self.agents.items():
             if agent_name != "general" and agent.can_handle(query):
@@ -125,21 +185,32 @@ Examples:
         parallel = len(matching_agents) > 1
         
         return {
+            "mode": "SIMPLE",
             "agents": matching_agents,
             "parallel": parallel,
             "reasoning": f"Fallback routing based on keyword matching. Found {len(matching_agents)} matching agents."
         }
     
     async def process_query(self, query: str, conversation_history: List[BaseMessage] = None) -> str:
-        """Process a query using the appropriate agent(s)."""
+        """Process a query using the appropriate agent(s) or iterative processing."""
         try:
             # Route the query
             routing = await self.route_query(query)
-            agent_names = routing["agents"]
-            use_parallel = routing["parallel"]
+            mode = routing.get("mode", "SIMPLE")
+            agent_names = routing.get("agents", [])
+            use_parallel = routing.get("parallel", False)
             
-            logger.info(f"Routing query to agents: {agent_names}, parallel: {use_parallel}")
+            logger.info(f"Routing query - Mode: {mode}, Agents: {agent_names}, Parallel: {use_parallel}")
             
+            # Use iterative processing for complex tasks
+            if mode == "ITERATIVE":
+                logger.info("Using iterative agent for complex task processing")
+                final_answer, iteration_steps = await self.iterative_agent.process_iteratively(
+                    query, conversation_history
+                )
+                return final_answer
+            
+            # Use simple agent routing for straightforward queries
             if not agent_names:
                 return "I apologize, but I couldn't determine how to handle your query."
             
@@ -218,9 +289,26 @@ Examples:
         return combined_response.strip()
     
     async def stream_process_query(self, query: str, conversation_history: List[BaseMessage] = None) -> AsyncGenerator[Tuple[str, bool], None]:
-        """Stream the response for a query."""
+        """Stream the response for a query with enhanced iterative processing."""
         try:
-            # Get the full response first
+            # Route the query first
+            routing = await self.route_query(query)
+            mode = routing.get("mode", "SIMPLE")
+            agent_names = routing.get("agents", [])
+            use_parallel = routing.get("parallel", False)
+            
+            logger.info(f"Streaming query - Mode: {mode}, Agents: {agent_names}, Parallel: {use_parallel}")
+            
+            # Use iterative streaming for complex tasks
+            if mode == "ITERATIVE":
+                logger.info("Using iterative streaming for complex task")
+                async for chunk, is_complete, step_info in self.iterative_agent.stream_process_iteratively(
+                    query, conversation_history
+                ):
+                    yield (chunk, is_complete)
+                return
+            
+            # Use regular streaming for simple tasks
             response = await self.process_query(query, conversation_history)
             
             # Stream it word by word

@@ -3,10 +3,52 @@
 ## Overview
 This document summarizes all documentation updates made to reflect the migration from Chainlit to Streamlit in the Agriculture AI Assistant project.
 
+## Recent Addition: Enhanced Tool Registry System
+
+### Latest Update: Empty Parameter Handling Fix
+
+Fixed a bug in the tool registry where empty parameters were not properly handled for LangChain tools. The fix ensures that when no parameters are provided, LangChain tools receive `tool_input=""` instead of no arguments, improving compatibility and preventing potential errors.
+
+**Technical Details:**
+- **File**: `backend/src/agents/tools/registry.py`
+- **Change**: Line 37 changed from `return self._func.run()` to `return self._func.run(tool_input="")`
+- **Impact**: Better LangChain tool compatibility, especially for tools that expect the `tool_input` parameter even when empty
+- **Backward Compatibility**: Maintained - existing tools continue to work without changes
+
+### New Feature Documentation
+Updated documentation for the enhanced tool registry system that provides improved LangChain tool compatibility and flexible invocation patterns:
+
+- **Enhanced LangChain Support**: Improved handling of LangChain tools with proper `tool_input` parameter formatting
+- **Fixed Empty Parameter Handling**: Corrected empty parameter case to properly pass `tool_input=""` for better LangChain compatibility
+- **Flexible Invocation Patterns**: Support for multiple tool invocation methods (run, invoke, direct calls)
+- **Tool Adapter Pattern**: Unified interface for all tool types with automatic parameter handling
+- **Backward Compatibility**: Existing tools continue to work without changes
+- **Better Error Handling**: Clear error messages for unsupported tool types
+- **Parameter Intelligence**: Automatic parameter conversion based on input type
+
+## Previous Addition: Intelligent LLM Routing Service
+
+### New Feature Documentation
+Added comprehensive documentation for the new intelligent LLM routing service that automatically selects appropriate models based on query complexity:
+
+- **Feature Overview**: Smart routing between small/fast and large/complex models
+- **Configuration Examples**: Dual-model setup with main and small LLM configurations
+- **Routing Logic**: Pattern matching, keyword analysis, and complexity scoring
+- **Cost Optimization**: Automatic cost reduction through intelligent model selection
+- **Performance Benefits**: Faster responses for simple queries
+- **Environment Variables**: New SMALL_LLM_* configuration options
+- **Integration Examples**: Code examples and usage patterns
+
 ## Files Updated
 
 ### 1. Main README.md
 **Key Changes:**
+- **Added Intelligent LLM Routing**: New section explaining smart model selection based on query complexity
+- **Updated Core Components**: Added routing service to architecture overview
+- **Enhanced Environment Variables**: Added SMALL_LLM_* configuration options
+- **Updated Project Structure**: Added routing_service.py to services directory
+- **Cost Optimization Documentation**: Explained dual-model cost reduction strategy
+- **Performance Benefits**: Documented faster responses for simple queries
 - Updated "Multiple Chat Interfaces" section to highlight Streamlit as primary interface
 - Modified project structure to reference Streamlit UI components
 - Updated core components description (Chainlit UI → Streamlit UI)
@@ -128,4 +170,40 @@ python run_streamlit.py
 4. Optional: Remove legacy Chainlit files
 5. Update any custom deployment scripts to use Streamlit
 
-This migration provides a more modern, customizable, and user-friendly chat interface while maintaining all existing backend functionality and API compatibility.
+## Intelligent LLM Routing Service Documentation
+
+### New Documentation Added
+- **Comprehensive Feature Overview**: Detailed explanation of intelligent model selection based on query complexity
+- **Configuration Examples**: Dual-model setup with main and small LLM configurations for cost optimization
+- **Routing Logic Documentation**: Pattern matching, keyword analysis, and complexity scoring algorithms
+- **Environment Variables**: New SMALL_LLM_* configuration options for dual-model setup
+- **Integration Examples**: Code examples showing routing service usage with agents and chat service
+- **Test File**: Created `test_routing_service.py` for testing routing functionality
+- **Benefits Documentation**: Cost reduction, performance optimization, and scalability improvements
+
+### Files Updated for Enhanced Tool Registry
+- **README.md**: Updated tool capabilities section to include enhanced tool registry
+- **backend/src/agents/README.md**: Added comprehensive tool registry documentation with:
+  - Enhanced LangChain compatibility section
+  - Tool adapter pattern explanation
+  - Multiple tool creation examples (LangChain, custom classes, simple functions)
+  - Usage examples and benefits
+  - Recent updates section highlighting improvements
+- **DOCUMENTATION_UPDATE_SUMMARY.md**: Updated to include tool registry enhancements
+
+### Files Updated for Routing Service
+- **README.md**: Added routing service to features, architecture, configuration, and recent updates
+- **backend/.env sample**: Added SMALL_LLM_* environment variables with provider examples
+- **MIGRATION_SUMMARY.md**: Added comprehensive routing service section
+- **backend/src/agents/README.md**: Added routing integration section for multi-agent system
+- **DOCUMENTATION_UPDATE_SUMMARY.md**: Updated to include routing service documentation
+
+### Routing Service Features Documented
+- **Automatic Classification**: Query complexity analysis using multiple factors
+- **Cost Optimization**: Intelligent routing to reduce LLM costs
+- **Performance Benefits**: Faster responses for simple queries
+- **Dual Model Support**: Configurable main and small LLM models
+- **Debugging Support**: Detailed routing information for monitoring
+- **Provider Flexibility**: Works with any OpenAI-compatible LLM provider
+
+This migration provides a more modern, customizable, and user-friendly chat interface while maintaining all existing backend functionality and API compatibility, now enhanced with intelligent LLM routing for optimal cost and performance.
