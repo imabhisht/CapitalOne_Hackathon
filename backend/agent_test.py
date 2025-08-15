@@ -21,46 +21,47 @@ class AgentState(TypedDict):
     tool_results: Optional[Dict]
     next_agent: Optional[str]
 
-# Gemini LLM wrapper using OpenAI SDK
-class GeminiLLM:
-    def __init__(self, model="gemma-3n-e2b-it", api_key=None):
+# Generic LLM wrapper using OpenAI SDK specification
+class OpenAICompatibleLLM:
+    def __init__(self, model=None, api_key=None, base_url=None):
         """
-        Initialize Gemini client using OpenAI SDK format
+        Initialize LLM client using OpenAI SDK format
         
         Args:
-            model: Gemini model name (e.g., "gemini-2.5-flash", "gemini-1.5-pro")
-            api_key: Gemini API key (if None, will use GEMINI_API_KEY env var)
+            model: LLM model name (e.g., "gpt-4", "gemini-2.5-flash", "claude-3-sonnet")
+            api_key: LLM API key (if None, will use LLM_API_KEY env var)
+            base_url: API base URL (if None, will use LLM_BASE_URL env var)
         """
-        self.model = model
+        self.model = model or os.getenv("LLM_MODEL", "gpt-3.5-turbo")
         self.client = OpenAI(
-            api_key=os.getenv("GEMINI_API_KEY"),
-            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+            api_key=api_key or os.getenv("LLM_API_KEY"),
+            base_url=base_url or os.getenv("LLM_BASE_URL")
         )
     
     def invoke(self, messages, temperature=0.7, max_tokens=1000):
         """
-        Invoke Gemini with messages
+        Invoke LLM with messages using OpenAI specification
         
         Args:
             messages: List of BaseMessage objects
             temperature: Sampling temperature (0.0 to 1.0)
             max_tokens: Maximum tokens in response
         """
-        # Convert LangChain messages to OpenAI format for Gemini
-        gemini_messages = []
+        # Convert LangChain messages to OpenAI format
+        openai_messages = []
         
         for msg in messages:
             if isinstance(msg, SystemMessage):
-                gemini_messages.append({"role": "system", "content": msg.content})
+                openai_messages.append({"role": "system", "content": msg.content})
             elif isinstance(msg, HumanMessage):
-                gemini_messages.append({"role": "user", "content": msg.content})
+                openai_messages.append({"role": "user", "content": msg.content})
             elif isinstance(msg, AIMessage):
-                gemini_messages.append({"role": "assistant", "content": msg.content})
+                openai_messages.append({"role": "assistant", "content": msg.content})
         
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=gemini_messages,
+                messages=openai_messages,
                 temperature=temperature,
                 max_tokens=max_tokens
             )
@@ -69,7 +70,7 @@ class GeminiLLM:
             return AIMessage(content=content)
             
         except Exception as e:
-            return AIMessage(content=f"Error calling Gemini: {str(e)}")
+            return AIMessage(content=f"Error calling LLM: {str(e)}")
 
 # Basic tools for the second agent
 class WeatherTool(BaseTool):
@@ -102,8 +103,8 @@ class SearchTool(BaseTool):
 
 # Agent 1: Intent Gathering Agent
 class IntentGatheringAgent:
-    def __init__(self, model="gemini-2.5-flash", api_key=None):
-        self.llm = GeminiLLM(model=model, api_key=api_key)
+    def __init__(self, model=None, api_key=None, base_url=None):
+        self.llm = OpenAICompatibleLLM(model=model, api_key=api_key, base_url=base_url)
         self.system_prompt = """You are an Intent Gathering Agent. Your job is to understand the complete user intent by asking clarifying questions until you have all necessary information.
 
 Guidelines:
@@ -156,8 +157,8 @@ Only use INTENT_COMPLETE when you have ALL the information needed to execute the
 
 # Agent 2: Task Execution Agent
 class TaskExecutionAgent:
-    def __init__(self, model="gemini-2.5-flash", api_key=None):
-        self.llm = GeminiLLM(model=model, api_key=api_key)
+    def __init__(self, model=None, api_key=None, base_url=None):
+        self.llm = OpenAICompatibleLLM(model=model, api_key=api_key, base_url=base_url)
         self.tools = {
             "get_weather": WeatherTool(),
             "calculator": CalculatorTool(),
@@ -238,16 +239,17 @@ Extract parameters carefully from the task instructions."""
 
 # Multi-Agent System
 class MultiAgentSystem:
-    def __init__(self, model="gemini-2.5-flash", api_key=None):
+    def __init__(self, model=None, api_key=None, base_url=None):
         """
-        Initialize the multi-agent system with Gemini
+        Initialize the multi-agent system with OpenAI-compatible LLM
         
         Args:
-            model: Gemini model name (default: "gemini-2.5-flash")
-            api_key: Gemini API key (if None, uses GEMINI_API_KEY env var)
+            model: LLM model name (default: from LLM_MODEL env var or "gpt-3.5-turbo")
+            api_key: LLM API key (if None, uses LLM_API_KEY env var)
+            base_url: API base URL (if None, uses LLM_BASE_URL env var)
         """
-        self.intent_agent = IntentGatheringAgent(model=model, api_key=api_key)
-        self.executor_agent = TaskExecutionAgent(model=model, api_key=api_key)
+        self.intent_agent = IntentGatheringAgent(model=model, api_key=api_key, base_url=base_url)
+        self.executor_agent = TaskExecutionAgent(model=model, api_key=api_key, base_url=base_url)
         self.graph = self._build_graph()
     
     def _build_graph(self):
@@ -304,44 +306,58 @@ class MultiAgentSystem:
         # Return the last message
         return final_state["messages"][-1].content
 
-# Configuration functions for Gemini
-def create_gemini_system(model="gemini-2.5-flash"):
-    """Standard Gemini configuration"""
-    return MultiAgentSystem(model=model)
+# Configuration functions for OpenAI-compatible LLMs
+def create_llm_system(model=None, api_key=None, base_url=None):
+    """Standard LLM configuration using environment variables"""
+    return MultiAgentSystem(model=model, api_key=api_key, base_url=base_url)
 
-def create_gemini_system_with_key(model="gemini-2.5-flash", api_key=None):
-    """Gemini configuration with explicit API key"""
+def create_openai_system(model="gpt-3.5-turbo", api_key=None):
+    """OpenAI configuration"""
     return MultiAgentSystem(model=model, api_key=api_key)
 
-# Legacy functions for compatibility (now redirect to Gemini)
-def create_openai_system(model="gemini-2.5-flash"):
-    """Legacy function - now uses Gemini"""
-    print("Note: Using Gemini 2.5 Flash instead of OpenAI")
-    return MultiAgentSystem(model=model)
+def create_openrouter_system(model="openai/gpt-3.5-turbo", api_key=None):
+    """OpenRouter configuration"""
+    return MultiAgentSystem(
+        model=model, 
+        api_key=api_key, 
+        base_url="https://openrouter.ai/api/v1"
+    )
 
-def create_azure_openai_system(deployment_name="gemini-2.5-flash", api_version=None):
-    """Legacy function - now uses Gemini"""
-    print("Note: Using Gemini 2.5 Flash instead of Azure OpenAI")
-    return MultiAgentSystem(model=deployment_name)
+def create_gemini_system(model="gemini-2.5-flash", api_key=None):
+    """Gemini configuration via OpenRouter or direct API"""
+    return MultiAgentSystem(
+        model=model, 
+        api_key=api_key,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+    )
 
-def create_local_llm_system(base_url="gemini-2.5-flash"):
-    """Legacy function - now uses Gemini"""
-    print("Note: Using Gemini 2.5 Flash instead of local LLM")
-    return MultiAgentSystem(model="gemini-2.5-flash")
+def create_claude_system(model="anthropic/claude-3-sonnet", api_key=None):
+    """Claude configuration via OpenRouter"""
+    return MultiAgentSystem(
+        model=model, 
+        api_key=api_key,
+        base_url="https://openrouter.ai/api/v1"
+    )
+
+def create_local_llm_system(model="llama2", base_url="http://localhost:11434/v1"):
+    """Local LLM configuration (e.g., Ollama)"""
+    return MultiAgentSystem(model=model, base_url=base_url)
 
 # Example usage and testing
 if __name__ == "__main__":
-    # Initialize the multi-agent system with Gemini 2.5 Flash
-    print("Initializing Multi-Agent System with Gemini 2.5 Flash...")
+    # Initialize the multi-agent system with environment configuration
+    print("Initializing Multi-Agent System with OpenAI-compatible LLM...")
     
-    # Standard Gemini configuration (uses GEMINI_API_KEY env var)
-    system = create_gemini_system("gemini-2.5-flash")
+    # Standard configuration (uses LLM_MODEL, LLM_API_KEY, LLM_BASE_URL env vars)
+    system = create_llm_system()
     
     # Alternative configurations:
-    # system = create_gemini_system_with_key("gemini-2.5-flash", "your-gemini-api-key")
-    # system = MultiAgentSystem(model="gemini-2.5-flash", api_key="your-key")
+    # system = create_openai_system("gpt-4", "your-openai-api-key")
+    # system = create_gemini_system("gemini-2.5-flash", "your-gemini-api-key")
+    # system = create_openrouter_system("anthropic/claude-3-sonnet", "your-openrouter-key")
+    # system = create_local_llm_system("llama2", "http://localhost:11434/v1")
     
-    print("Multi-Agent System initialized with Gemini!")
+    print("Multi-Agent System initialized!")
     print("=" * 50)
     
     # Test scenarios
@@ -360,20 +376,20 @@ if __name__ == "__main__":
             print(f"System Response: {response}")
         except Exception as e:
             print(f"Error: {e}")
-            print("Make sure you have set GEMINI_API_KEY environment variable")
+            print("Make sure you have set LLM_API_KEY and LLM_BASE_URL environment variables")
         
         print("-" * 30)
 
 # Interactive mode function
 def interactive_mode():
-    """Run the system in interactive mode with Gemini"""
-    print("Multi-Agent System - Interactive Mode (Powered by Gemini 2.5 Flash)")
-    print("Make sure you have set your GEMINI_API_KEY environment variable")
+    """Run the system in interactive mode with OpenAI-compatible LLM"""
+    print("Multi-Agent System - Interactive Mode")
+    print("Make sure you have set your LLM_API_KEY and LLM_BASE_URL environment variables")
     print("Type 'quit' to exit")
     print("=" * 60)
     
     try:
-        system = create_gemini_system("gemini-2.5-flash")
+        system = create_llm_system()
         
         while True:
             user_input = input("\nYou: ").strip()
@@ -390,11 +406,11 @@ def interactive_mode():
                 print(f"System: {response}")
             except Exception as e:
                 print(f"Error: {e}")
-                print("Check your GEMINI_API_KEY and internet connection")
+                print("Check your LLM_API_KEY, LLM_BASE_URL and internet connection")
                 
     except Exception as e:
         print(f"Failed to initialize system: {e}")
-        print("Make sure you have set GEMINI_API_KEY environment variable")
+        print("Make sure you have set LLM_API_KEY and LLM_BASE_URL environment variables")
 
 # Uncomment to run interactive mode
 # interactive_mode()

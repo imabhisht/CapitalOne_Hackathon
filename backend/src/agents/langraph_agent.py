@@ -11,7 +11,7 @@ from langgraph.graph import StateGraph, END, START
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
-from src.llm.gemini_llm import GeminiLLM
+from src.llm.openai_compatible_llm import OpenAICompatibleLLM
 from .tools.registry import tool_registry
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class LangGraphAgent:
     LangGraph agent with tool calling capabilities using proper LangGraph patterns.
     """
     
-    def __init__(self, llm: GeminiLLM):
+    def __init__(self, llm: OpenAICompatibleLLM):
         self.llm = llm
         self.tools = tool_registry.get_all_tools()
         self.tool_map = {tool.name: tool for tool in self.tools}

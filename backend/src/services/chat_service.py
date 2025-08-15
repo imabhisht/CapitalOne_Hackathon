@@ -10,8 +10,10 @@ from src.models.chat_request import ChatRequest, ChatResponse
 from src.models.chat_session import ChatSession
 
 # LLM and Agent imports
-from src.llm.gemini_llm import GeminiLLM
+from src.llm.openai_compatible_llm import OpenAICompatibleLLM
 from src.agents.langraph_agent import LangGraphAgent
+from src.services.multi_agent_service import multi_agent_service
+from src.services.routing_service import routing_service
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
 # Configure logging
@@ -20,19 +22,36 @@ logger = logging.getLogger(__name__)
 
 class ChatService:
     """
-    Enhanced ChatService with Gemini LLM integration.
+    Enhanced ChatService with OpenAI-compatible LLM integration.
     Supports both simple LLM responses and multi-agent workflows.
     """
 
     def __init__(self):
-        # Initialize Gemini LLM
-        self.llm = GeminiLLM(
-            model="gemini-2.0-flash-exp",  # Using the latest model
-            api_key=os.getenv("GEMINI_API_KEY")
+        # Initialize OpenAI-compatible LLM (main model)
+        self.llm = OpenAICompatibleLLM(
+            model=os.getenv("LLM_MODEL", "gpt-3.5-turbo"),
+            api_key=os.getenv("LLM_API_KEY"),
+            base_url=os.getenv("LLM_BASE_URL")
         )
         
-        # Initialize LangGraph Agent
+        # Initialize small LLM for routing and simple tasks
+        self.small_llm = OpenAICompatibleLLM(
+            model=os.getenv("SMALL_LLM_MODEL", "gpt-3.5-turbo"),
+            api_key=os.getenv("SMALL_LLM_API_KEY"),
+            base_url=os.getenv("SMALL_LLM_BASE_URL")
+        )
+        
+        # Initialize LangGraph Agent with main LLM
         self.agent = LangGraphAgent(self.llm)
+        
+        # Initialize small agent for simple tasks
+        self.small_agent = LangGraphAgent(self.small_llm)
+        
+        # Multi-agent mode flag (can be set via environment variable)
+        self.use_multi_agent = os.getenv("USE_MULTI_AGENT", "true").lower() == "true"
+        
+        # Enable smart routing (can be disabled via environment variable)
+        self.use_smart_routing = os.getenv("USE_SMART_ROUTING", "true").lower() == "true"
         
         # System prompt for the assistant
         self.system_prompt = """You are a helpful AI assistant for CapitalOne. You can help users with:
@@ -48,18 +67,44 @@ Please be helpful, accurate, and conversational. If you need more information to
 
     async def _process_message(self, message: str, conversation_history: list = None) -> AsyncGenerator[Tuple[str, bool], None]:
         """
-        Core logic to process the message using Gemini LLM and yield response chunks.
+        Core logic to process the message using smart routing, multi-agent system, or single LangGraph agent.
         """
         try:
             logger.info(f"_process_message called with message: {message}")
             logger.info(f"_process_message conversation_history length: {len(conversation_history) if conversation_history else 0}")
+            logger.info(f"Using multi-agent mode: {self.use_multi_agent}")
             
-            # Use LangGraph Agent instead of direct LLM call
-            async for chunk, is_complete in self.agent.stream_invoke(message, conversation_history):
-                yield (chunk, is_complete)
+            # Choose processing method based on configuration for complex tasks
+            if self.use_multi_agent and multi_agent_service.is_available():
+                logger.info(f"Using multi-agent system for message: '{message}'")
+                # Create a ChatRequest for the multi-agent service
+                from src.models.chat_request import ChatRequest
+                
+                # Convert conversation history to the format expected by multi-agent service
+                history_for_multi_agent = []
+                if conversation_history:
+                    for msg in conversation_history:
+                        if isinstance(msg, HumanMessage):
+                            history_for_multi_agent.append({"role": "user", "content": msg.content})
+                        elif isinstance(msg, AIMessage):
+                            history_for_multi_agent.append({"role": "assistant", "content": msg.content})
+                
+                request = ChatRequest(
+                    message=message,
+                    conversation_history=history_for_multi_agent
+                )
+                
+                # Use multi-agent system
+                async for chunk, is_complete in multi_agent_service.generate_streaming_response(request):
+                    yield (chunk, is_complete)
+            else:
+                logger.info(f"Using single LangGraph agent for message: '{message}' (multi_agent: {self.use_multi_agent}, available: {multi_agent_service.is_available()})")
+                # Use single LangGraph Agent (main LLM)
+                async for chunk, is_complete in self.agent.stream_invoke(message, conversation_history):
+                    yield (chunk, is_complete)
             
         except Exception as e:
-            logger.error(f"Error in LLM processing: {e}")
+            logger.error(f"Error in message processing: {e}")
             error_message = f"I apologize, but I encountered an error: {str(e)}"
             words = error_message.split()
             for word in words:
@@ -73,7 +118,7 @@ Please be helpful, accurate, and conversational. If you need more information to
         **kwargs
     ) -> AsyncGenerator[Tuple[str, bool], None]:
         """
-        Generate streaming response using Gemini LLM.
+        Generate streaming response using OpenAI-compatible LLM.
         Also handles storing messages to MongoDB.
         
         Yields:
@@ -154,7 +199,7 @@ Please be helpful, accurate, and conversational. If you need more information to
                             content=accumulated_response.strip(),
                             message_type="ai",
                             language_type=getattr(request, 'language_type', 'en'),
-                            metadata={"generated_by": "gemini_llm", "model": "gemini-2.0-flash-exp"},
+                            metadata={"generated_by": "openai_compatible_llm", "model": os.getenv("LLM_MODEL", "gpt-3.5-turbo")},
                             sync_to_db=True
                         )
                         logger.info(f"AI message saved for session: {chat_session.id}")

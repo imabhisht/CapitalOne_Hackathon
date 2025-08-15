@@ -1,0 +1,21 @@
+{
+  "enabled": true,
+  "name": "Python Documentation Updater",
+  "description": "Listens to Python source files and configuration files in the repository and automatically updates README and documentation when changes are detected",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "backend/src/**/*.py",
+      "backend/*.py",
+      "data/*.py",
+      "backend/pyproject.toml",
+      "backend/.env sample",
+      "data/.env sample"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Source code or configuration files have been modified in this Python project. Please analyze the changes and update the relevant documentation including:\n\n1. The main README.md file at the root level\n2. Any README files in subdirectories (like backend/src/agents/README.md and data/README.md)\n3. Update documentation to reflect any new features, API changes, configuration changes, or architectural modifications\n4. Ensure all setup instructions, usage examples, and API documentation remain accurate\n5. Update any dependency information if pyproject.toml was modified\n6. Keep documentation consistent across all README files\n\nFocus on making the documentation clear, comprehensive, and up-to-date with the current codebase."
+  }
+}

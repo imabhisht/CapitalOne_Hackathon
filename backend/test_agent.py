@@ -9,16 +9,17 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-from src.llm.gemini_llm import GeminiLLM
+from src.llm.openai_compatible_llm import OpenAICompatibleLLM
 from src.agents.langraph_agent import LangGraphAgent
 
 async def test_agent():
     """Test the LangGraph agent with various queries."""
     
     # Initialize LLM and Agent
-    llm = GeminiLLM(
-        model="gemini-2.0-flash-exp",
-        api_key=os.getenv("GEMINI_API_KEY")
+    llm = OpenAICompatibleLLM(
+        model=os.getenv("LLM_MODEL", "gpt-3.5-turbo"),
+        api_key=os.getenv("LLM_API_KEY"),
+        base_url=os.getenv("LLM_BASE_URL")
     )
     
     agent = LangGraphAgent(llm)
