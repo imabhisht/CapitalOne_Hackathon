@@ -118,9 +118,10 @@ FINAL_ANSWER: Based on the current weather in New York (72°F, sunny), it's a gr
             logger.info(f"Starting iteration {iteration}/{self.max_iterations}")
             
             try:
-                # Get LLM response
-                response = self.llm.invoke(messages)
-                response_content = response.content
+                # Get LLM response (run blocking invoke in executor to avoid blocking event loop)
+                loop = asyncio.get_event_loop()
+                response = await loop.run_in_executor(None, lambda: self.llm.invoke(messages))
+                response_content = getattr(response, 'content', str(response))
                 
                 # Parse the response
                 step = self._parse_iteration_response(response_content, iteration)
@@ -173,7 +174,9 @@ FINAL_ANSWER: Based on the current weather in New York (72°F, sunny), it's a gr
         messages.append(HumanMessage(content=final_prompt))
         
         try:
-            final_response = self.llm.invoke(messages)
+            # Ensure LLM invoke runs in executor
+            loop = asyncio.get_event_loop()
+            final_response = await loop.run_in_executor(None, lambda: self.llm.invoke(messages))
             final_step = IterationStep(
                 step_number=self.max_iterations + 1,
                 thought="Reached maximum iterations, providing final answer based on available information",
@@ -230,19 +233,12 @@ FINAL_ANSWER: Based on the current weather in New York (72°F, sunny), it's a gr
         """Execute a tool with the given input."""
         if tool_name not in self.tool_map:
             return f"Error: Unknown tool '{tool_name}'. Available tools: {list(self.tool_map.keys())}"
-        
+
         tool = self.tool_map[tool_name]
-        
+
         try:
-            # Most tools expect a single string parameter
-            if len(tool_input) == 1:
-                param_value = list(tool_input.values())[0]
-                result = tool.invoke(str(param_value))
-            else:
-                # For tools that might need multiple parameters, pass the first value
-                param_value = list(tool_input.values())[0] if tool_input else ""
-                result = tool.invoke(str(param_value))
-            
+            # Always use the ToolAdapter's invoke method which handles LangChain tools properly
+            result = tool.invoke(tool_input)
             return str(result)
         except Exception as e:
             logger.error(f"Error executing tool {tool_name}: {e}")

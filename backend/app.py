@@ -6,14 +6,10 @@ from contextlib import asynccontextmanager
 import json
 import os
 import sys
-import logging
+import colorlog
 import subprocess
 import threading
 import openlit
-
-openlit.init(
-  otlp_endpoint="http://127.0.0.1:4318", 
-)
 
 # Import Modelsw
 from src.models.chat_request import ChatRequest, ChatResponse
@@ -24,8 +20,24 @@ from src.services.multi_agent_service import multi_agent_service
 from src.infrastructure.mongo_service import mongo_service
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+colorlog.basicConfig(level=colorlog.INFO)
+logger = colorlog.getLogger(__name__)
+
+
+# Check if OpenLit endpoint is available before initializing
+try:
+    import requests
+    response = requests.get('http://127.0.0.1:3000', timeout=1)
+    if response.status_code == 200:
+        openlit.init(
+            otlp_endpoint="http://127.0.0.1:4318", 
+        )
+        logger.info("OpenLit monitoring initialized successfully")
+    else:
+        logger.info("OpenLit endpoint not available, monitoring disabled")
+except Exception as e:
+    logger.info(f"OpenLit monitoring not available: {e}")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

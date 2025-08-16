@@ -416,7 +416,7 @@ st.header("💬 Chat")
 # Display chat messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+        st.markdown(message["content"], unsafe_allow_html=True)
 
 # Chat input
 if prompt := st.chat_input("Ask me anything..."):
@@ -518,11 +518,11 @@ if prompt := st.chat_input("Ask me anything..."):
                                                 main_container.markdown(current_main)
                                             else:
                                                 # No thinking detected, show full response
-                                                main_container.markdown(full_response + "▌")
+                                                main_container.markdown(full_response + "▌", unsafe_allow_html=True)
                                         elif not has_thinking:
                                             # Still streaming, show cursor
-                                            main_container.markdown(full_response + "▌")
-                                    
+                                            main_container.markdown(full_response + "▌", unsafe_allow_html=True)
+
                                     elif is_complete:
                                         break
                                         
@@ -541,7 +541,7 @@ if prompt := st.chat_input("Ask me anything..."):
                         
                         # Show final main response
                         if final_main:
-                            main_container.markdown(final_main)
+                            main_container.markdown(final_main, unsafe_allow_html=True)
                             # Store only the main response for chat history
                             response_for_history = final_main
                         else:
@@ -550,7 +550,7 @@ if prompt := st.chat_input("Ask me anything..."):
                     else:
                         # No thinking content, show full response
                         if full_response:
-                            main_container.markdown(full_response)
+                            main_container.markdown(full_response, unsafe_allow_html=True)
                             response_for_history = full_response
                         else:
                             main_container.markdown("*No response received*")

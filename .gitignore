@@ -1,4 +1,28 @@
-*/.env
-.venv
-*/*.log
+# Environment variables
 .env
+*/.env
+
+# Virtual environments
+.venv
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data cache
+data/geocode_cache.json
+data/geocoding.log

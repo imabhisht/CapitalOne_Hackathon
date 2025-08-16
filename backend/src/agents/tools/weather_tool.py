@@ -6,57 +6,82 @@ from langchain_core.tools import tool
 from typing import Dict, Any
 import logging
 import random
+import requests
+import os
 
 logger = logging.getLogger(__name__)
 
 @tool
-def get_weather(location: str = "Baroda, Jamjodhpur") -> Dict[str, Any]:
-    """
-    Get weather information for a location.
-    
+def get_weather(lat: float, lon: float) -> Dict:
+    """Fetch current weather from WeatherAPI by coordinates.
+    Returns a comprehensive JSON dict with weather information.
+
     Args:
-        location: Location to get weather for
-        
-    Returns:
-        Dict containing weather information
+        lat: Latitude of the location
+        lon: Longitude of the location
+
     """
+    WEATHERAPI_KEY = os.getenv("WEATHERAPI_KEY")
+    if not WEATHERAPI_KEY:
+        return {"error": "WEATHERAPI_KEY is not set in environment variables"}
+    
     try:
-        # Mock weather data
-        weather_data = {
-            "location": location,
-            "temperature": {
-                "current": random.randint(25, 35),
-                "feels_like": random.randint(27, 38),
-                "min": random.randint(20, 25),
-                "max": random.randint(35, 42)
-            },
-            "humidity": random.randint(40, 80),
-            "wind_speed": random.randint(5, 20),
-            "conditions": random.choice(["Sunny", "Partly Cloudy", "Cloudy", "Light Rain"]),
-            "visibility": "10 km",
-            "uv_index": random.randint(3, 8),
-            "forecast": [
-                {
-                    "day": "Today",
-                    "high": random.randint(35, 42),
-                    "low": random.randint(20, 25),
-                    "condition": "Sunny"
+        url = "https://api.weatherapi.com/v1/current.json"
+        params = {"key": WEATHERAPI_KEY, "q": f"{lat},{lon}", "aqi": "yes"}
+        r = requests.get(url, params=params, timeout=10)
+        
+        if r.status_code >= 400:
+            return {"error": f"WeatherAPI error {r.status_code}", "details": r.text}
+        
+        data = r.json()
+        
+        # Enhanced weather data with more useful information
+        weather_info = {
+            "location": {
+                "name": data.get("location", {}).get("name"),
+                "region": data.get("location", {}).get("region"),
+                "country": data.get("location", {}).get("country"),
+                "coordinates": {
+                    "lat": data.get("location", {}).get("lat"),
+                    "lon": data.get("location", {}).get("lon")
                 },
-                {
-                    "day": "Tomorrow", 
-                    "high": random.randint(33, 40),
-                    "low": random.randint(22, 27),
-                    "condition": "Partly Cloudy"
-                }
-            ]
+                "timezone": data.get("location", {}).get("tz_id"),
+                "local_time": data.get("location", {}).get("localtime"),
+            },
+            "current_weather": {
+                "temperature": {
+                    "celsius": data.get("current", {}).get("temp_c"),
+                    "fahrenheit": data.get("current", {}).get("temp_f"),
+                    "feels_like_c": data.get("current", {}).get("feelslike_c"),
+                    "feels_like_f": data.get("current", {}).get("feelslike_f"),
+                },
+                "condition": {
+                    "text": data.get("current", {}).get("condition", {}).get("text"),
+                    "icon": data.get("current", {}).get("condition", {}).get("icon"),
+                },
+                "wind": {
+                    "speed_kph": data.get("current", {}).get("wind_kph"),
+                    "speed_mph": data.get("current", {}).get("wind_mph"),
+                    "direction": data.get("current", {}).get("wind_dir"),
+                    "degree": data.get("current", {}).get("wind_degree"),
+                },
+                "atmospheric": {
+                    "humidity": data.get("current", {}).get("humidity"),
+                    "pressure_mb": data.get("current", {}).get("pressure_mb"),
+                    "visibility_km": data.get("current", {}).get("vis_km"),
+                    "uv_index": data.get("current", {}).get("uv"),
+                },
+                "last_updated": data.get("current", {}).get("last_updated"),
+            }
         }
         
-        logger.info(f"Retrieved weather data for: {location}")
-        return weather_data
+        # Add air quality if available
+        if data.get("current", {}).get("air_quality"):
+            weather_info["air_quality"] = data.get("current", {}).get("air_quality")
         
+        return weather_info
+        
+    except requests.RequestException as e:
+        return {"error": f"Network error calling WeatherAPI: {str(e)}"}
     except Exception as e:
-        logger.error(f"Error getting weather data: {e}")
-        return {
-            "error": f"Failed to get weather data: {str(e)}",
-            "location": location
-        }
+        return {"error": f"Unexpected error calling WeatherAPI: {str(e)}"}
