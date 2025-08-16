@@ -123,6 +123,7 @@ Main workflow orchestrator that implements LangGraph patterns:
 - **Conditional Routing**: Smart routing between model calls and tool execution
 - **LLM Integration**: Works with any OpenAI SDK-compatible LLM provider
 - **Enhanced Debugging**: Tool descriptions are logged during initialization for better development visibility
+- **Improved Logging**: Benefits from the application's color-coded logging system for easier debugging
 
 ### IterativeAgent (`iterative_agent.py`)
 
@@ -146,6 +147,7 @@ Advanced reasoning agent that can solve complex problems through controlled iter
 - **Tool Execution Safety**: Safe tool parameter handling with error recovery
 - **Response Format Parsing**: Extracts THOUGHT, ACTION, ACTION_INPUT, and FINAL_ANSWER from LLM responses
 - **Background Processing**: Detailed logging for debugging while maintaining clean user interface
+- **Enhanced Development Experience**: Color-coded logging with precise source location tracking for debugging complex iterations
 
 #### Usage Patterns
 
@@ -327,6 +329,7 @@ The multi-agent system follows a hierarchical architecture with intelligent rout
 - **Returns**: Dictionary with temperature, humidity, forecast, UV index, wind conditions
 - **LangChain Integration**: Decorated with `@tool` for seamless agent integration
 - **Agricultural Focus**: Includes farming-relevant weather metrics
+- **HTTP Integration**: Uses requests library for external weather API calls when configured
 
 #### Calculator Tool (`tools/calculator_tool.py`)
 
@@ -335,6 +338,14 @@ The multi-agent system follows a hierarchical architecture with intelligent rout
 - **Security**: Uses whitelist of safe operators to prevent code injection
 - **Returns**: Dictionary with expression, result, and success status
 - **LangChain Integration**: Decorated with `@tool` for seamless LangChain compatibility
+
+### Tool Enhancement Capabilities
+
+With the addition of the `requests` library, tools can now:
+- **External API Integration**: Make HTTP calls to real-time data sources
+- **Weather API Connectivity**: Connect to live weather services
+- **Data Enrichment**: Fetch additional context from external services
+- **Real-time Information**: Access current data beyond static responses
 
 ## Usage
 

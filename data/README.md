@@ -1,20 +1,28 @@
 # Agriculture Data Loader
 
-This directory contains scripts and data files for loading, enriching, and preparing Indian district-level agriculture datasets for analysis. The pipeline loads CSVs into MongoDB, adds geolocation coordinates, and enables geospatial queries for the Agriculture AI Assistant's Streamlit chat interface.
+Scripts and data files for loading Indian district-level agriculture datasets into MongoDB. The pipeline loads CSVs, adds geolocation coordinates, and enables geospatial queries.
 
 ## Contents
 
-- `data_loader.py` — Loads all CSV datasets into MongoDB collections with type-safe conversion and logging.
-- `add_geolocation.py` — Geocodes all unique district-state pairs, updates collections with latitude/longitude, and creates geospatial indexes.
-- `crop_production_data.csv`, `irrigation_source_data.csv`, `max_temperature_data.csv`, `min_temperature_data.csv`, `precipitation_data.csv` — Raw data files to be loaded.
-- `geocode_cache.json` — (Auto-generated) Caches geocoding results to minimize API calls.
-- `.env sample` — Example environment variable file for MongoDB and Google Maps API key.
+- `data_loader.py` — Loads CSV datasets into MongoDB collections
+- `add_geolocation.py` — Geocodes district-state pairs and creates geospatial indexes
+- `*.csv` — Raw agriculture data files
+- `geocode_cache.json` — (Auto-generated) Caches geocoding results
 
 ## Prerequisites
 
-- Python 3.7+
+- Python 3.11+
 - MongoDB (local or remote instance)
 - [Google Maps API Key](https://developers.google.com/maps/documentation/geocoding/get-api-key) (optional, for improved geocoding)
+
+## Dependencies
+
+The data loading scripts use these key libraries:
+- **PyMongo**: MongoDB driver for data insertion and querying
+- **Requests**: HTTP client for geocoding API calls
+- **Python-dotenv**: Environment variable management
+
+When run from the backend environment, the scripts benefit from the enhanced logging system with colorlog providing color-coded output and structured formatting for better debugging visibility.
 
 ## Setup
 
@@ -23,16 +31,17 @@ This directory contains scripts and data files for loading, enriching, and prepa
 	pip install pymongo python-dotenv requests
 	```
 	
-	Or if using the backend environment:
+	Or if using the backend environment (recommended):
 	```bash
 	cd ../backend && pip install -e .
 	```
+	
+	The backend installation includes all required dependencies including the enhanced requests library for improved geocoding performance.
 2. **Configure environment variables:**
-	- Copy `.env sample` to `.env` and fill in your MongoDB URL and (optionally) Google Maps API key:
-	  ```
-	  MONGO_URL=mongodb://localhost:27017/
-	  GOOGLE_MAPS_API_KEY=your_google_maps_api_key
-	  ```
+	```bash
+	cp .env.example .env
+	```
+	Edit `.env` with your MongoDB URL and API keys.
 3. **Place all CSV files** in this directory.
 4. **Ensure MongoDB is running** and accessible at the URL you provided.
 
@@ -45,6 +54,7 @@ python data_loader.py
 ```
 - Loads all CSVs into the `agriculture_data` database.
 - Progress and errors are logged to `dataloading.log`.
+- When run from the backend environment, benefits from color-coded console logging for real-time progress visibility.
 
 ### 2. Add Geolocation Coordinates
 
@@ -55,12 +65,13 @@ python add_geolocation.py
 - Updates all collections with `latitude`, `longitude`, and a GeoJSON `coordinates` field.
 - Creates geospatial indexes for efficient spatial queries.
 - Logs progress to `geocoding.log` and caches results in `geocode_cache.json`.
+- Enhanced console output with color-coded logging when run from the backend environment.
 
 ## File Descriptions
 
 - **data_loader.py**: Reads each CSV, converts types safely, and inserts documents into MongoDB collections. Handles missing/invalid data gracefully.
 - **add_geolocation.py**: Finds all unique district-state pairs, geocodes them (with caching and fallback), updates all collections, and creates 2dsphere indexes.
-- **.env sample**: Template for required environment variables.
+- **.env.example**: Template for required environment variables.
 - **geocode_cache.json**: (Generated) Stores geocoding results to avoid redundant API calls.
 
 ## Notes
