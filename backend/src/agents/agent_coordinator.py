@@ -86,9 +86,10 @@ Examples:
                 SystemMessage(content=self.routing_prompt),
                 HumanMessage(content=f"Route this query: {query}")
             ]
-
-            response = self.small_llm.invoke(messages)
-            routing_decision = self._parse_routing_response(response.content)
+            # small_llm.invoke is blocking; run it in an executor to avoid blocking the event loop
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, lambda: self.small_llm.invoke(messages))
+            routing_decision = self._parse_routing_response(getattr(response, 'content', str(response)))
             logger.info(f"LLM routing response: {response.content}")
             logger.info(f"Parsed routing decision: {routing_decision}")
             

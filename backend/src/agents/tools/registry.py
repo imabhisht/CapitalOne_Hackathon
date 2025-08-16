@@ -4,9 +4,11 @@ Tool registry for managing all available tools.
 
 from typing import List, Any, Callable
 
+
 from .location_tool import get_location
 from .weather_tool import get_weather
 from .calculator_tool import calculate
+from .crop_data_tool import get_crop_data
 
 
 class ToolAdapter:
@@ -30,11 +32,12 @@ class ToolAdapter:
         """
         # Check if this is a LangChain tool (has run method)
         if hasattr(self._func, "run") and callable(getattr(self._func, "run")):
-            # LangChain tools expect tool_input as keyword argument
+            # LangChain tools expect tool_input as the parameter
             if isinstance(param, dict):
-                return self._func.run(**param)
+                # For LangChain tools, we need to pass the dict as tool_input
+                return self._func.run(tool_input=param)
             elif param is None or (isinstance(param, str) and param == ""):
-                return self._func.run(tool_input="")
+                return self._func.run(tool_input={})
             else:
                 return self._func.run(tool_input=param)
         
@@ -74,6 +77,7 @@ class ToolRegistry:
             "get_location": ToolAdapter(get_location),
             "get_weather": ToolAdapter(get_weather),
             "calculate": ToolAdapter(calculate),
+            "get_crop_data": ToolAdapter(get_crop_data),
         }
 
     def get_all_tools(self) -> List[Any]:
