@@ -5,7 +5,7 @@ Tool registry for managing all available tools.
 from typing import List, Any, Callable
 
 
-from .location_tool import get_location
+from .location_tool import get_user_current_location
 from .weather_tool import get_weather
 from .calculator_tool import calculate
 from .crop_data_tool import get_crop_data
@@ -49,6 +49,22 @@ class ToolAdapter:
             elif param is None or (isinstance(param, str) and param == ""):
                 return self._func.invoke({})
             else:
+                # Try to convert to appropriate format based on tool signature
+                if hasattr(self._func, 'args') and len(self._func.args) > 1:
+                    # Multi-parameter tool, convert to dict if needed
+                    if isinstance(param, str) and ',' in param:
+                        # Split comma-separated values for multi-parameter tools
+                        values = [v.strip() for v in param.split(',')]
+                        arg_names = list(self._func.args.keys())
+                        param_dict = {}
+                        for i, value in enumerate(values):
+                            if i < len(arg_names):
+                                try:
+                                    # Try to convert to appropriate type
+                                    param_dict[arg_names[i]] = float(value)
+                                except ValueError:
+                                    param_dict[arg_names[i]] = value
+                        return self._func.invoke(param_dict)
                 return self._func.invoke({"tool_input": param})
         
         # Fallback for regular callable functions
@@ -74,7 +90,7 @@ class ToolRegistry:
     def __init__(self):
         # Map of canonical name -> ToolAdapter
         self._tools = {
-            "get_location": ToolAdapter(get_location),
+            "get_user_current_location": ToolAdapter(get_user_current_location),
             "get_weather": ToolAdapter(get_weather),
             "calculate": ToolAdapter(calculate),
             "get_crop_data": ToolAdapter(get_crop_data),

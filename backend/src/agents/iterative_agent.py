@@ -48,10 +48,30 @@ You work in iterations, following this pattern:
 Available tools:
 {tool_descriptions}
 
+IMPORTANT TOOL USAGE RULES:
+- get_user_current_location: Use this to get the user's current location. No parameters needed.
+  ACTION: get_user_current_location
+  ACTION_INPUT: {{}}
+
+- get_weather: Use this ONLY after you have coordinates from get_user_current_location. Requires lat and lon.
+  ACTION: get_weather
+  ACTION_INPUT: {{"lat": latitude_value, "lon": longitude_value}}
+
+- calculate: Use for mathematical calculations.
+  ACTION: calculate
+  ACTION_INPUT: {{"expression": "mathematical_expression"}}
+
+- get_crop_data: Use for crop production data. Requires coordinates.
+  ACTION: get_crop_data
+  ACTION_INPUT: {{"latitude": lat_value, "longitude": lon_value, "year": year_optional}}
+
 IMPORTANT INSTRUCTIONS:
+- Before giving any response, make sure you have all necessary information and most importantly, the user's location.
 - You have a maximum of {max_iterations} iterations to complete the task
 - Each iteration should move you closer to solving the problem
 - Use tools strategically - don't make unnecessary calls
+- For location queries, ALWAYS use get_user_current_location first
+- For weather queries, get location first, then use those coordinates for weather
 - When you have enough information, provide a FINAL_ANSWER
 
 Response format for each iteration:
@@ -64,12 +84,15 @@ THOUGHT: [Your final reasoning]
 FINAL_ANSWER: [Your complete response to the user]
 
 Examples:
-THOUGHT: I need to get weather information for the user's location first.
-ACTION: get_weather
-ACTION_INPUT: {{"location": "New York"}}
+User asks "what is the current location":
+THOUGHT: The user wants to know their current location. I should use the get_location tool.
+ACTION: get_location
+ACTION_INPUT: {{}}
 
-THOUGHT: Now I have the weather data, I can provide a comprehensive answer.
-FINAL_ANSWER: Based on the current weather in New York (72°F, sunny), it's a great day for outdoor activities.
+User asks "what's the weather":
+THOUGHT: I need to get weather information. First I need the user's location coordinates.
+ACTION: get_location
+ACTION_INPUT: {{}}
 """
     
     def _get_tool_descriptions(self) -> str:
@@ -237,8 +260,36 @@ FINAL_ANSWER: Based on the current weather in New York (72°F, sunny), it's a gr
         tool = self.tool_map[tool_name]
 
         try:
-            # Always use the ToolAdapter's invoke method which handles LangChain tools properly
-            result = tool.invoke(tool_input)
+            logger.info(f"Executing tool: {tool_name}")
+            logger.info(f"Tool input: {tool_input}")
+            
+            # Handle different tool input formats
+            if tool_name == 'get_location':
+                # get_location doesn't need parameters
+                result = tool.invoke()
+            elif tool_name == 'get_weather':
+                # get_weather needs lat and lon parameters
+                if 'lat' in tool_input and 'lon' in tool_input:
+                    result = tool.invoke(tool_input)
+                else:
+                    return f"Error: get_weather requires 'lat' and 'lon' parameters. Got: {tool_input}"
+            elif tool_name == 'calculate':
+                # calculate needs expression parameter
+                if 'expression' in tool_input:
+                    result = tool.invoke(tool_input['expression'])
+                else:
+                    return f"Error: calculate requires 'expression' parameter. Got: {tool_input}"
+            elif tool_name == 'get_crop_data':
+                # get_crop_data needs latitude and longitude
+                if 'latitude' in tool_input and 'longitude' in tool_input:
+                    result = tool.invoke(tool_input)
+                else:
+                    return f"Error: get_crop_data requires 'latitude' and 'longitude' parameters. Got: {tool_input}"
+            else:
+                # For other tools, pass the input directly
+                result = tool.invoke(tool_input)
+                
+            logger.info(f"Tool result: {str(result)[:200]}...")
             return str(result)
         except Exception as e:
             logger.error(f"Error executing tool {tool_name}: {e}")

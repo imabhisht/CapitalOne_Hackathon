@@ -1,3 +1,4 @@
+from urllib.request import Request
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -481,6 +482,50 @@ async def chat_completions(request: dict):
                 "message": str(e),
                 "type": "internal_error"
             }
+        }
+
+@app.post("/session/location")
+async def store_session_location(request: dict):
+    """Store user location for the session"""
+    try:
+        session_id = request.get("session_id")
+        user_id = request.get("user_id") 
+        latitude = request.get("latitude")
+        longitude = request.get("longitude")
+        
+        if not all([session_id, user_id, latitude is not None, longitude is not None]):
+            return {
+                "error": "Missing required fields: session_id, user_id, latitude, longitude",
+                "received": request
+            }
+        
+        # Import the session storage service
+        from src.services.session_storage import session_storage
+        
+        # Store the location
+        await session_storage.store_location(
+            session_id=session_id,
+            user_id=user_id, 
+            latitude=float(latitude),
+            longitude=float(longitude)
+        )
+        
+        logger.info(f"Stored location for session {session_id}: lat={latitude}, lon={longitude}")
+        
+        return {
+            "success": True,
+            "message": "Location stored successfully",
+            "session_id": session_id,
+            "location": {
+                "latitude": latitude,
+                "longitude": longitude
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error storing session location: {e}")
+        return {
+            "error": f"Failed to store location: {str(e)}"
         }
 
 # Streamlit integration

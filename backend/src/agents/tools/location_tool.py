@@ -1,51 +1,115 @@
-"""
-Location tool for getting location information.
-"""
-
 from langchain_core.tools import tool
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
+import requests
+import os
 
 logger = logging.getLogger(__name__)
 
+# Global variable to store current session context
+_current_session_id = None
+
+def set_session_context(session_id: str):
+    """Set the current session ID for location tool context"""
+    global _current_session_id
+    _current_session_id = session_id
+
+def get_session_context() -> Optional[str]:
+    """Get the current session ID"""
+    global _current_session_id
+    return _current_session_id
+
+
 @tool
-def get_location(query: str = "") -> Dict[str, Any]:
+def get_user_current_location() -> Dict[str, Any]:
     """
-    Get location information. For now returns static location data for Baroda, Jamjodhpur.
+    Get the user's current location coordinates.
     
-    Args:
-        query: Optional query string for location (currently ignored)
-        
     Returns:
-        Dict containing location information
+        Dict containing latitude and longitude coordinates, or error if not available
     """
     try:
-        # Static location data for Baroda, Jamjodhpur
-        location_data = {
-            "city": "Baroda",
-            "district": "Jamjodhpur", 
-            "state": "Gujarat",
-            "country": "India",
-            "coordinates": {
-                "latitude": 22.3072,
-                "longitude": 73.1812
-            },
-            "timezone": "Asia/Kolkata",
-            "population": "Approximately 1.8 million",
-            "area": "235 sq km",
-            "elevation": "39 meters above sea level",
-            "climate": "Semi-arid",
-            "major_industries": ["Petrochemicals", "Pharmaceuticals", "Engineering", "Textiles"],
-            "landmarks": ["Laxmi Vilas Palace", "Sayaji Baug", "EME Temple", "Baroda Museum"]
-        }
+        print("Fetching user location...")
+        print('---------------------------')
+        # Get user location from session
+        session_id = get_session_context()
         
-        logger.info(f"Retrieved location data for query: {query}")
-        return location_data
+        if not session_id:
+            return {
+                "error": "No session context available",
+                "source": "no_session"
+            }
+        
+        try:
+            # Try to import and use session storage
+            from src.services.session_storage import session_storage
+            location_data = session_storage.get_location_sync(session_id)
+            
+            if not location_data:
+                return {
+                    "error": "No location data found in session",
+                    "session_id": session_id,
+                    "source": "no_location_data"
+                }
+            
+            latitude = location_data.get('latitude')
+            longitude = location_data.get('longitude')
+            
+            if latitude is None or longitude is None:
+                return {
+                    "error": "Invalid location data in session",
+                    "session_id": session_id,
+                    "source": "invalid_location_data"
+                }
+            
+            # Validate coordinate ranges
+            if not (-90 <= latitude <= 90):
+                return {
+                    "error": f"Invalid latitude: {latitude}. Must be between -90 and 90",
+                    "source": "invalid_coordinates"
+                }
+            
+            if not (-180 <= longitude <= 180):
+                return {
+                    "error": f"Invalid longitude: {longitude}. Must be between -180 and 180",
+                    "source": "invalid_coordinates"
+                }
+            
+            # get the name of city
+            # city_info = reverse_geocode_coordinates(latitude, longitude)
+            print("111111")
+            coordinates = {
+                "latitude": latitude,
+                "longitude": longitude,
+                "session_id": session_id,
+                # "city": city_info.get("city"),
+                # "district": city_info.get("district"),
+                # "state": city_info.get("state"),
+                # "country": city_info.get("country"),
+                "source": "user_session",
+                "success": True
+            }
+            
+            logger.info(f"Successfully retrieved user location from session {session_id}: ({latitude}, {longitude})")
+            return coordinates
+            
+        except ImportError:
+            logger.warning("Session storage module not available")
+            return {
+                "error": "Session storage service not available",
+                "source": "service_unavailable"
+            }
+        except Exception as e:
+            logger.error(f"Error retrieving location from session {session_id}: {e}")
+            return {
+                "error": f"Failed to retrieve location from session: {str(e)}",
+                "session_id": session_id,
+                "source": "session_error"
+            }
         
     except Exception as e:
-        logger.error(f"Error getting location data: {e}")
+        logger.error(f"Error getting user location: {e}")
         return {
-            "error": f"Failed to get location data: {str(e)}",
-            "city": "Unknown",
-            "district": "Unknown"
+            "error": f"Failed to get user location: {str(e)}",
+            "source": "location_service_error"
         }

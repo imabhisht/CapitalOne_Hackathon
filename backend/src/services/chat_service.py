@@ -179,6 +179,11 @@ Please be helpful, accurate, and conversational. If you need more information to
             # Store the session ID for potential retrieval
             self._current_session_id = chat_session.id if chat_session else None
             
+            # Set session context for location tool
+            if self._current_session_id:
+                from src.agents.tools.location_tool import set_session_context
+                set_session_context(self._current_session_id)
+            
             # Generate AI response with conversation context
             accumulated_response = ""
             logger.info(f"Conversation history length: {len(conversation_history)}")

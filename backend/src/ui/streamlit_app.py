@@ -5,6 +5,7 @@ import uuid
 import time
 from datetime import datetime
 import re
+import streamlit.components.v1 as components
 
 
 # Configure Streamlit page
@@ -308,10 +309,115 @@ if "user_id" not in st.session_state:
 if "chat_session_id" not in st.session_state:
     st.session_state.chat_session_id = None
 
+
+# Browser location helper: inject JS to request location and store in localStorage
+def request_location_with_retry():
+    """Location permission with ability to re-request if blocked"""
+    components.html("""
+    <script>
+    function requestLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    localStorage.setItem('userLat', position.coords.latitude);
+                    localStorage.setItem('userLon', position.coords.longitude);
+                    console.log('Location stored successfully');
+                    // Signal to Streamlit that location is available
+                    window.parent.postMessage({type: 'locationAvailable', available: true}, '*');
+                },
+                function(error) {
+                    if (error.code === error.PERMISSION_DENIED) {
+                        console.log('Location permission denied. You can reset this in browser settings.');
+                        // Show instructions to user
+                        alert('Location blocked. For the best performance, please enable location access: Click the location icon in the address bar or go to browser Settings > Privacy > Location.');
+                    }
+                    window.parent.postMessage({type: 'locationAvailable', available: false}, '*');
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+    }
+    
+    // Request on load
+    if (!window.locationAttempted) {
+        window.locationAttempted = true;
+        requestLocation();
+    }
+    
+    // Expose function globally for manual retry
+    window.requestLocationAgain = requestLocation;
+    </script>
+    """, height=0)
+
+
+def get_browser_location():
+    """Check if browser location is available in localStorage"""
+    try:
+        # This is a simple check - in a real implementation, you might want to 
+        # call the backend to verify stored location exists
+        return st.session_state.get('location_available', False)
+    except:
+        return False
+
+
+def send_browser_location_to_backend(api_base_url: str, force_session_id: str = None):
+    """Read lat/lon from localStorage (via JS) and POST to backend /session/location.
+
+    This uses components.html to run a small JS fetch so that the browser's origin is used.
+    
+    Args:
+        api_base_url: The base URL for the API
+        force_session_id: Optional session ID to use instead of st.session_state
+    """
+    # Use provided session_id or fall back to session state
+    session_id = force_session_id or st.session_state.get('chat_session_id', '')
+    user_id = st.session_state.get('user_id', '')
+    
+    # Don't send if we don't have required IDs
+    if not session_id or not user_id:
+        return
+    
+    # The JS reads localStorage and posts to the backend with session_id and user_id from Streamlit.
+    components.html(f"""
+    <script>
+    (async function() {{
+        try {{
+            const lat = localStorage.getItem('userLat');
+            const lon = localStorage.getItem('userLon');
+            if (!lat || !lon) {{
+                console.log('No location in localStorage');
+                return;
+            }}
+
+            const payload = {{
+                session_id: '{session_id}',
+                user_id: '{user_id}',
+                latitude: parseFloat(lat),
+                longitude: parseFloat(lon)
+            }};
+
+            console.log('Sending location to backend:', payload);
+
+            await fetch('{api_base_url}/session/location', {{
+                method: 'POST',
+                headers: {{ 'Content-Type': 'application/json' }},
+                body: JSON.stringify(payload)
+            }}).then(r => r.json()).then(j => console.log('location posted successfully:', j)).catch(e => console.log('post failed', e));
+        }} catch (e) {{ console.log('error sending location', e); }}
+    }})();
+    </script>
+    """, height=0)
+
+# Initialize app title
+APP_TITLE = "CapitalOne Agentic Assistant"
+
+# Request browser location if not available
+request_location_with_retry()
+
 # Modern Header
-st.markdown("""
+st.markdown(f"""
 <div class="app-header">
-    <div class="app-title">😄 CapitalOne Agentic Assistant</div>
+    <div class="app-title">😄 {APP_TITLE}</div>
     <div class="app-subtitle">Your intelligent agricultural assistant powered by advanced AI</div>
 </div>
 """, unsafe_allow_html=True)
@@ -340,6 +446,16 @@ with st.sidebar:
                     st.error(f"❌ Connection failed: {response.status_code}")
             except Exception as e:
                 st.error(f"❌ Connection error: {e}")
+
+        # After API URL is input, attempt to request and send browser location
+        try:
+            # inject location request JS once
+            request_location_with_retry()
+            # send any stored location to the backend
+            send_browser_location_to_backend(api_url)
+        except Exception:
+            # non-fatal; Streamlit will still work
+            pass
     
     # Display session info
     st.info(f"**User ID:** {st.session_state.user_id}")
@@ -423,6 +539,15 @@ if prompt := st.chat_input("Ask me anything..."):
     # start new session if needed
     if not st.session_state.chat_session_id:
         st.session_state.chat_session_id = f"session_{str(uuid.uuid4())[:8]}"
+        
+        # Send location to backend now that we have a session ID
+        try:
+            api_url_for_location = locals().get('api_url', 'http://localhost:5050')
+            send_browser_location_to_backend(api_url_for_location, st.session_state.chat_session_id)
+        except Exception as e:
+            # Non-fatal error, but log it
+            st.sidebar.warning(f"Could not send location: {str(e)}")
+    
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
     
