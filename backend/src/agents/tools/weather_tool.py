@@ -13,19 +13,26 @@ logger = logging.getLogger(__name__)
 
 @tool
 def get_weather(lat: float, lon: float) -> Dict:
-    """Fetch current weather from WeatherAPI by coordinates.
-    Returns a comprehensive JSON dict with weather information.
+    """Get weather information for specific coordinates.
+    
+    This tool fetches current weather data using latitude and longitude coordinates.
+    Use get_location() first to obtain coordinates, then call this tool.
 
     Args:
-        lat: Latitude of the location
-        lon: Longitude of the location
+        lat: Latitude of the location (required)
+        lon: Longitude of the location (required)
 
+    Returns:
+        Dict containing comprehensive weather information including temperature, conditions, wind, etc.
     """
     WEATHERAPI_KEY = os.getenv("WEATHERAPI_KEY")
     if not WEATHERAPI_KEY:
         return {"error": "WEATHERAPI_KEY is not set in environment variables"}
     
     try:
+        if not (lat and lon):
+            return {"error": "Invalid latitude or longitude"}
+
         url = "https://api.weatherapi.com/v1/current.json"
         params = {"key": WEATHERAPI_KEY, "q": f"{lat},{lon}", "aqi": "yes"}
         r = requests.get(url, params=params, timeout=10)

@@ -77,6 +77,11 @@ class MultiAgentService:
             return
         
         try:
+            # Set session context for location tool if session_id is available
+            if hasattr(request, 'session_id') and request.session_id:
+                from src.agents.tools.location_tool import set_session_context
+                set_session_context(request.session_id)
+            
             # Convert conversation history to BaseMessage objects
             conversation_history = []
             if hasattr(request, 'conversation_history') and request.conversation_history:

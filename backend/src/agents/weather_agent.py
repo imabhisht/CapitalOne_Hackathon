@@ -28,24 +28,28 @@ Your expertise includes:
 - Microclimate considerations
 
 IMPORTANT: You have access to the following tools that you MUST use when appropriate:
-- get_weather: Get weather information for a location
-- get_location: Get location information
+- get_location: Get the user's current location coordinates
+- get_weather: Get weather information for specific coordinates (requires lat/lon)
 
 TOOL USAGE INSTRUCTIONS:
-When users ask about weather for any location, you MUST call the get_weather tool using this EXACT format:
-TOOL_CALL: get_weather("location_name")
+For weather queries, you MUST follow this sequence:
+1. First get location: TOOL_CALL: get_location()
+2. Then get weather: TOOL_CALL: get_weather(latitude, longitude)
 
-When users ask about location information, use:
+When users ask about weather without specifying location, use:
 TOOL_CALL: get_location()
+
+When you have coordinates, get weather with:
+TOOL_CALL: get_weather(lat, lon)
 
 ALWAYS use these tools for current weather data. Do NOT provide weather information without using the tools first.
 
 Example responses:
-User: "What's the weather in Mumbai?"
-You: "I'll check the current weather conditions for Mumbai. TOOL_CALL: get_weather("Mumbai")"
+User: "What's the weather today?"
+You: "I'll check the current weather conditions for your location. First, let me get your location. TOOL_CALL: get_location()"
 
-User: "Will it rain tomorrow?"
-You: "Let me get the weather forecast for your area. TOOL_CALL: get_weather("your_location")"
+User: "What's the weather like for farming?"
+You: "Let me get your location and then check the current weather conditions. TOOL_CALL: get_location()"
 
 Focus on practical implications for farming and agriculture when discussing weather."""
         
@@ -101,36 +105,71 @@ Focus on practical implications for farming and agriculture when discussing weat
             return response
         
         tool_results = []
+        location_data = None
+        
         for match in matches:
             tool_name, params = match
             logger.info(f"Attempting to call tool: {tool_name} with params: {params}")
             
             if tool_name in self.tool_map:
                 try:
-                    # Clean up parameters - remove quotes and whitespace
-                    param_value = params.strip().strip('"').strip("'").strip() if params.strip() else ""
-                    
-                    # Call the tool
-                    result = self.tool_map[tool_name].invoke(param_value)
-                    logger.info(f"Tool {tool_name} executed successfully")
-                    
-                    # Format the result nicely
-                    if isinstance(result, dict):
-                        if 'error' in result:
-                            tool_results.append(f"❌ {tool_name} error: {result['error']}")
+                    # Handle different tool types
+                    if tool_name == 'get_location':
+                        # No parameters needed for location
+                        result = self.tool_map[tool_name].invoke()
+                        logger.info(f"Tool {tool_name} executed successfully")
+                        
+                        if isinstance(result, dict) and 'error' not in result and result.get('success'):
+                            location_data = result
+                            lat = result.get('latitude')
+                            lon = result.get('longitude')
+                            tool_results.append(f"📍 Location found: {lat}, {lon}")
                         else:
-                            # Format weather data nicely
-                            if tool_name == 'get_weather':
-                                location = result.get('location', 'Unknown')
-                                temp = result.get('temperature', {})
-                                current_temp = temp.get('current', 'N/A')
-                                conditions = result.get('conditions', 'N/A')
-                                humidity = result.get('humidity', 'N/A')
-                                formatted_result = f"Weather for {location}: {current_temp}°C, {conditions}, Humidity: {humidity}%"
-                                tool_results.append(f"🌤️ {formatted_result}")
+                            tool_results.append(f"❌ Location error: {result.get('error', 'Unknown error')}")
+                            
+                    elif tool_name == 'get_weather':
+                        # Parse lat/lon parameters for weather
+                        if location_data and 'latitude' in location_data and 'longitude' in location_data:
+                            # Use location from previous call
+                            lat = location_data['latitude']
+                            lon = location_data['longitude']
+                        else:
+                            # Try to parse parameters
+                            param_value = params.strip().strip('"').strip("'").strip()
+                            if ',' in param_value:
+                                coords = param_value.split(',')
+                                lat = float(coords[0].strip())
+                                lon = float(coords[1].strip())
                             else:
-                                tool_results.append(f"📍 {tool_name} result: {result}")
+                                tool_results.append(f"❌ Weather error: Need coordinates. Call get_location() first.")
+                                continue
+                        
+                        # Call weather tool with coordinates
+                        result = self.tool_map[tool_name].invoke({'lat': lat, 'lon': lon})
+                        logger.info(f"Tool {tool_name} executed successfully")
+                        
+                        # Format the result nicely
+                        if isinstance(result, dict):
+                            if 'error' in result:
+                                tool_results.append(f"❌ {tool_name} error: {result['error']}")
+                            else:
+                                # Format weather data nicely
+                                location_info = result.get('location', {})
+                                current = result.get('current_weather', {})
+                                temp_c = current.get('temperature', {}).get('celsius', 'N/A')
+                                condition = current.get('condition', {}).get('text', 'N/A')
+                                humidity = current.get('atmospheric', {}).get('humidity', 'N/A')
+                                wind_kph = current.get('wind', {}).get('speed_kph', 'N/A')
+                                
+                                location_name = location_info.get('name', 'Unknown Location')
+                                formatted_result = f"Weather for {location_name}: {temp_c}°C, {condition}, Humidity: {humidity}%, Wind: {wind_kph} km/h"
+                                tool_results.append(f"🌤️ {formatted_result}")
+                        else:
+                            tool_results.append(f"📍 {tool_name} result: {result}")
                     else:
+                        # Handle other tools normally
+                        param_value = params.strip().strip('"').strip("'").strip() if params.strip() else ""
+                        result = self.tool_map[tool_name].invoke(param_value)
                         tool_results.append(f"✅ {tool_name} result: {result}")
                         
                 except Exception as e:
