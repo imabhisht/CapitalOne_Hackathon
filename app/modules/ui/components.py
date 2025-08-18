@@ -3,7 +3,7 @@ UI helper functions for Streamlit app.
 """
 import streamlit as st
 import streamlit.components.v1 as components
-from ..config import get_logger
+from ...config import get_logger
 
 # Initialize logger
 logger = get_logger(__name__)
@@ -71,23 +71,56 @@ def request_location_with_retry():
     logger.debug("Location retry component rendered")
 
 def stream_markdown_response(text, delay=0.015):
+    """
+    Stream and render markdown response properly in Streamlit.
+    
+    Args:
+        text (str): Markdown text to stream
+        delay (float): Delay between characters in seconds
+    """
     logger.debug(f"Streaming markdown response - Length: {len(text)} characters, Delay: {delay}s")
     
     import time
+    import re
+    
     container = st.empty()
-    words = text.split()
+    
+    # If the text is short, just display it directly
+    if len(text) < 80:
+        container.markdown(text)
+        logger.debug("Short text displayed directly")
+        return
+    
+    # For longer texts, stream character by character for better markdown handling
     streamed = ""
     
-    logger.debug(f"Response split into {len(words)} words for streaming")
-    
-    for i, word in enumerate(words):
-        streamed += word + " "
+    # Process the text to handle markdown properly
+    # We'll stream character by character but be smart about markdown elements
+    i = 0
+    while i < len(text):
+        char = text[i]
+        streamed += char
         container.markdown(streamed + "▌")
         time.sleep(delay)
+        i += 1
         
-        # Log progress every 20 words to avoid spam
-        if (i + 1) % 20 == 0:
-            logger.debug(f"Streaming progress: {i + 1}/{len(words)} words")
+        # Log progress every 50 characters to avoid spam
+        if i % 50 == 0:
+            logger.debug(f"Streaming progress: {i}/{len(text)} characters")
     
+    # Final render without cursor
     container.markdown(streamed)
     logger.debug("Markdown streaming completed")
+
+def render_markdown_response(text):
+    """
+    Render markdown response properly in Streamlit without streaming.
+    
+    Args:
+        text (str): Markdown text to render
+    """
+    logger.debug(f"Rendering markdown response - Length: {len(text)} characters")
+    
+    # Use Streamlit's markdown function which properly handles all markdown syntax
+    st.markdown(text)
+    logger.debug("Markdown rendering completed")

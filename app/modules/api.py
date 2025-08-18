@@ -8,6 +8,7 @@ from typing import List, Dict, Optional
 from dotenv import load_dotenv
 from .tools import tool_get_weather_by_coords, tool_get_lat_lon_from_browser, tool_get_date_time, tool_get_crop_data_by_location, tool_get_irrigation_data_by_location, tool_get_climate_data_by_location
 from ..config import get_logger
+from .ui.formatting import format_agricultural_data
 
 # Load environment variables
 load_dotenv()
@@ -216,6 +217,10 @@ def handle_tool_calls(choice: Dict) -> List[Dict]:
                     else:
                         logger.debug(f"Getting crop data for coordinates: {lat}, {lon}" + (f" for year {year}" if year else ""))
                         result = tool_get_crop_data_by_location(float(lat), float(lon), year)
+                        # Format the result for better display
+                        if isinstance(result, dict) and (result.get("success") or result.get("error")):
+                            formatted_result = format_agricultural_data(result)
+                            result = {"formatted_response": formatted_result, "raw_data": result}
                         
                 elif name == "get_irrigation_data_by_location":
                     lat = args.get("lat")
@@ -227,6 +232,10 @@ def handle_tool_calls(choice: Dict) -> List[Dict]:
                     else:
                         logger.debug(f"Getting irrigation data for coordinates: {lat}, {lon}" + (f" for year {year}" if year else ""))
                         result = tool_get_irrigation_data_by_location(float(lat), float(lon), year)
+                        # Format the result for better display
+                        if isinstance(result, dict) and (result.get("success") or result.get("error")):
+                            formatted_result = format_agricultural_data(result)
+                            result = {"formatted_response": formatted_result, "raw_data": result}
                         
                 elif name == "get_climate_data_by_location":
                     lat = args.get("lat")
@@ -239,6 +248,10 @@ def handle_tool_calls(choice: Dict) -> List[Dict]:
                     else:
                         logger.debug(f"Getting {data_type} data for coordinates: {lat}, {lon}" + (f" for year {year}" if year else ""))
                         result = tool_get_climate_data_by_location(float(lat), float(lon), data_type, year)
+                        # Format the result for better display
+                        if isinstance(result, dict) and (result.get("success") or result.get("error")):
+                            formatted_result = format_agricultural_data(result)
+                            result = {"formatted_response": formatted_result, "raw_data": result}
                         
                 else:
                     logger.error(f"Unknown tool function: {name}")

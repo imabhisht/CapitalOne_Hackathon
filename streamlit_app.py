@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from app.modules.tools import get_browser_location
 from app.modules.api import openrouter_tools_schema, call_openrouter_chat, handle_tool_calls
 from app.modules.prompts import generate_system_prompt
-from app.modules.ui import add_location_permission, request_location_with_retry, stream_markdown_response
+from app.modules.ui import add_location_permission, request_location_with_retry, stream_markdown_response, render_markdown_response
 from app.config import setup_logging, get_logger, APP_NAME, VERSION
 import os
 
@@ -21,7 +21,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_API_BASE = os.getenv("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL")
 WEATHERAPI_KEY = os.getenv("WEATHERAPI_KEY")
-MONGO_URL = os.getenv("MONGO_URL")
+MONGO_URL = os.getenv("MONGODB_URI")
 
 # Log application startup
 logger.info(f"Starting {APP_NAME} v{VERSION}")
@@ -35,6 +35,67 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Add custom CSS for better markdown rendering
+st.markdown("""
+<style>
+    /* Custom styles for better readability */
+    .stMarkdown {
+        line-height: 1.6;
+    }
+    
+    /* Better spacing for lists */
+    ul, ol {
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+    }
+    
+    li {
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Better styling for tables */
+    table {
+        margin: 1rem 0;
+        border-collapse: collapse;
+        width: 100%;
+    }
+    
+    th, td {
+        border: 1px solid #ddd;
+        padding: 0.5rem;
+        text-align: left;
+    }
+    
+    th {
+        background-color: #f8f9fa;
+        font-weight: bold;
+    }
+    
+    /* Better styling for code blocks */
+    code {
+        background-color: #f8f9fa;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-family: monospace;
+    }
+    
+    pre {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        overflow-x: auto;
+    }
+    
+    /* Better styling for blockquotes */
+    blockquote {
+        border-left: 4px solid #007bff;
+        padding: 0.5rem 1rem;
+        margin: 1rem 0;
+        background-color: #f8f9fa;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 logger.debug("Streamlit page configuration set")
 
@@ -99,7 +160,8 @@ else:
 st.markdown("### Chat with Krishi Mitra")
 for i, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+        # Use our improved markdown rendering for all messages
+        render_markdown_response(msg["content"])
 
 if prompt := st.chat_input("Ask me anything about farming, crops, weather, or irrigation..."):
     logger.info(f"User prompt received: {prompt[:100]}{'...' if len(prompt) > 100 else ''}")
@@ -200,12 +262,38 @@ if prompt := st.chat_input("Ask me anything about farming, crops, weather, or ir
         
         logger.info(f"Final response length: {len(final_response) if final_response else 0} characters")
         
-        if final_response and len(final_response) > 80:
-            logger.debug("Streaming response to user")
-            stream_markdown_response(final_response)
+        # Check if this is a formatted agricultural data response
+        if isinstance(final_response, str) and final_response.startswith('{"formatted_response":'):
+            try:
+                import json
+                response_data = json.loads(final_response)
+                if "formatted_response" in response_data:
+                    logger.debug("Displaying formatted agricultural data")
+                    render_markdown_response(response_data["formatted_response"])
+                else:
+                    # Fallback to regular markdown rendering
+                    if final_response and len(final_response) > 80:
+                        logger.debug("Streaming response to user")
+                        stream_markdown_response(final_response)
+                    else:
+                        logger.debug("Displaying response directly")
+                        render_markdown_response(final_response)
+            except json.JSONDecodeError:
+                # Fallback to regular markdown rendering
+                if final_response and len(final_response) > 80:
+                    logger.debug("Streaming response to user")
+                    stream_markdown_response(final_response)
+                else:
+                    logger.debug("Displaying response directly")
+                    render_markdown_response(final_response)
         else:
-            logger.debug("Displaying response directly")
-            st.markdown(final_response)
+            # Regular response handling
+            if final_response and len(final_response) > 80:
+                logger.debug("Streaming response to user")
+                stream_markdown_response(final_response)
+            else:
+                logger.debug("Displaying response directly")
+                render_markdown_response(final_response)
             
         st.session_state.messages.append({"role": "assistant", "content": final_response})
         logger.debug("Response added to chat history")
