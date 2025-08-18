@@ -1,8 +1,8 @@
 # Krishi Mitra - Agricultural Assistant for Indian Farmers
 
-An intelligent agricultural assistant that helps Indian farmers make informed decisions about crops, weather, irrigation, and market prices.
+An intelligent agricultural assistant that helps Indian farmers make informed decisions about crops, weather, irrigation, market prices, and soil conditions.
 
-## Features
+## 🌾 Features
 
 - **Location-aware assistance**: Uses browser geolocation to provide relevant information for your area
 - **Enhanced weather forecasts**: 
@@ -16,9 +16,10 @@ An intelligent agricultural assistant that helps Indian farmers make informed de
 - **Irrigation information**: Data on irrigation sources in your area
 - **Climate data**: Temperature and precipitation patterns
 - **Market prices**: Commodity prices from the CEDA Agmarknet API
+- **Soil water content monitoring**: Satellite-based soil moisture data for irrigation decisions
 - **AI-powered insights**: Natural language interface for asking farming questions
 
-## Prerequisites
+## 🛠️ Prerequisites
 
 - Python 3.8+
 - MongoDB instance (local or remote)
@@ -27,8 +28,9 @@ An intelligent agricultural assistant that helps Indian farmers make informed de
   - [WeatherAPI](https://www.weatherapi.com/) (for weather data)
   - [Google Maps API](https://developers.google.com/maps/documentation/geocoding/get-api-key) (optional, for improved geocoding)
   - [CEDA API](https://api.ceda.ashoka.edu.in/) (for commodity prices)
+  - [Planet API](https://www.planet.com/) (for soil water content data)
 
-## Setup
+## 🚀 Setup
 
 1. **Clone the repository:**
    ```bash
@@ -59,16 +61,23 @@ An intelligent agricultural assistant that helps Indian farmers make informed de
    - `MONGODB_URI` - Your MongoDB connection string
    - `GOOGLE_MAPS_API_KEY` - Optional, for improved geocoding
    - `CEDA_API_KEY` - Get from [CEDA API](https://api.ceda.ashoka.edu.in/)
+   - `PLANET_API_KEY` - Get from [Planet API](https://www.planet.com/)
 
 5. **Load agricultural data:**
-   Follow the instructions in `data/README.md` to load the agricultural datasets into MongoDB.
+   Follow the instructions in `data/README.md` to load the agricultural datasets into MongoDB:
+   ```bash
+   cd data
+   python data_loader.py
+   python add_geolocation.py
+   cd ..
+   ```
 
 6. **Run the application:**
    ```bash
    streamlit run streamlit_app.py
    ```
 
-## Usage
+## 💬 Usage
 
 Once the application is running, you can:
 
@@ -80,27 +89,48 @@ Once the application is running, you can:
    - "What was the weather like last week for comparison?"
    - "What's the air quality today?"
    - "What are the current market prices for wheat in my district?"
+   - "What is the soil water content in my area?"
 
 2. The assistant will use your browser's location (if permitted) to provide location-specific information.
 
-## Tools
+## 🧰 Available Tools
 
-The assistant has access to several tools:
+The assistant has access to several specialized tools:
 
-- **Enhanced Weather Tool**: 
-  - Current weather conditions with air quality data
-  - Weather forecasts up to 14 days ahead
-  - Hourly weather predictions
-  - Weather alerts and warnings
-  - Historical weather data from 2010 onwards
-- **Agricultural Data Tools**: Access crop, irrigation, and climate data
-- **Commodity Price Tools**: Access market prices for agricultural commodities (via CEDA API)
-- **Location Tool**: Get your current coordinates
-- **Date/Time Tool**: Get the current date and time
+### Weather Tool
+- Current weather conditions with air quality data
+- Weather forecasts up to 14 days ahead
+- Hourly weather predictions
+- Weather alerts and warnings
+- Historical weather data from 2010 onwards
 
-## Market Price Queries
+### Agricultural Data Tools
+- Access crop production data for your district
+- Irrigation source information
+- Climate patterns and trends
 
-The application can now fetch real-time commodity prices from the CEDA Agmarknet API. You can ask questions like:
+### Commodity Price Tools
+- Access real-time market prices for agricultural commodities (via CEDA API)
+- Location-aware price comparisons
+- Historical price analysis
+
+### Soil Water Content Tool
+- Satellite-based soil moisture monitoring
+- Multiple spatial resolutions (20m, 100m, 1000m)
+- Data from SMAP and AMSR2 satellite sensors
+- Near-daily global updates
+- Agricultural decision support for irrigation
+
+### Location Tool
+- Get your current coordinates
+- Reverse geocoding to determine state/district
+
+### Date/Time Tool
+- Get the current date and time
+
+## 💰 Market Price Queries
+
+The application can fetch real-time commodity prices from the CEDA Agmarknet API. You can ask questions like:
 
 - "What is the current price of wheat in Nagpur district?"
 - "How have rice prices changed in my area over the past month?"
@@ -113,7 +143,41 @@ The system automatically:
 4. Retrieves current price information
 5. Presents the data in an easy-to-understand format
 
-## Development
+## 🌱 Soil Water Content Monitoring
+
+The application now includes satellite-based soil water content monitoring using Planet's API. You can ask questions like:
+
+- "What is the soil moisture level in my field?"
+- "Is my crop area getting enough water?"
+- "Should I irrigate based on current soil conditions?"
+
+Benefits:
+- Near-daily global soil moisture measurements
+- Multiple spatial resolutions for precise monitoring
+- Data from multiple satellite sensors (SMAP, AMSR2)
+- Agricultural decision support for optimal irrigation
+
+## 📚 Data Sources
+
+The application uses several agricultural datasets:
+- Crop production statistics by district
+- Irrigation source data by district
+- Temperature (max/min) data by district
+- Precipitation data by district
+
+## 🧪 Testing
+
+The project includes several test scripts to verify functionality:
+- `test_enhanced_commodity_tool.py` - Tests for commodity price tools
+- `test_geographies.py` - Tests for geographic data handling
+- `test_simple_commodity.py` - Tests for basic commodity queries
+
+Run tests with:
+```bash
+python -m pytest test_*.py
+```
+
+## 🛠️ Development
 
 To contribute to this project:
 
@@ -123,6 +187,26 @@ To contribute to this project:
 4. Test thoroughly
 5. Submit a pull request
 
-## License
+## 📁 Project Structure
+
+```
+hackathon-capital-one/
+├── app/                    # Main application modules
+│   ├── modules/            # Core functionality
+│   │   ├── tools/          # Individual tool implementations
+│   │   ├── ui/             # User interface components
+│   │   ├── api.py          # API integrations
+│   │   └── prompts.py      # System prompts
+│   └── config.py           # Application configuration
+├── data/                   # Agricultural datasets and loaders
+├── docs/                   # Documentation files
+├── logs/                   # Application logs
+├── tests/                  # Test scripts
+├── streamlit_app.py        # Main Streamlit application
+├── requirements.txt        # Python dependencies
+└── .env.example            # Environment variable template
+```
+
+## 📝 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
