@@ -165,6 +165,11 @@ The application uses several agricultural datasets:
 - Temperature (max/min) data by district
 - Precipitation data by district
 
+Additional data sources:
+- [CEDA API Documentation](https://api.ceda.ashoka.edu.in/documentation)
+- [ICRISAT Crop Data](http://data.icrisat.org/dld/src/crops.html)
+- [Planet Soil Water Content Data](https://docs.planet.com/data/planetary-variables/soil-water-content/)
+
 ## 🧪 Testing
 
 The project includes several test scripts to verify functionality:
