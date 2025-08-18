@@ -198,7 +198,7 @@ if prompt := st.chat_input("Ask me anything about farming, crops, weather, or ir
                     if tool_messages:
                         logger.info(f"Tool calls detected: {len(tool_messages)} tools to execute")
                     
-                    max_iterations = 5
+                    max_iterations = 20
                     iteration = 0
                     while tool_messages and iteration < max_iterations:
                         iteration += 1
@@ -210,8 +210,8 @@ if prompt := st.chat_input("Ask me anything about farming, crops, weather, or ir
                         
                         tool_name = tool_messages[0]["name"] if tool_messages and tool_messages[0].get("name") else "tool"
                         logger.info(f"Executing tool: {tool_name}")
-                        
-                        with st.spinner(f"Calling {tool_name}... (attempt {iteration})"):
+
+                        with st.spinner(f"Calling {tool_name}..."):
                             follow_up = call_openrouter_chat(
                                 full_conversation,
                                 system_prompt,
@@ -322,4 +322,12 @@ with col3:
     - "How much rainfall is expected this month?"
     - "Which irrigation method is best for my area?"
     """)
+    
+st.markdown("""
+**Market Prices**
+- "What are the current prices for rice in my state?"
+- "How have wheat prices changed over the past month?"
+- "What are the prices for cotton in my district?"
+- "What is the price of cotton in Nagpur district, Maharashtra?"
+""")
 st.caption("Your location data is only used for this session and is not stored permanently. For best results, enable location services in your browser.")

@@ -6,7 +6,23 @@ import json
 from openai import OpenAI
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
-from .tools import tool_get_weather_by_coords, tool_get_lat_lon_from_browser, tool_get_date_time, tool_get_crop_data_by_location, tool_get_irrigation_data_by_location, tool_get_climate_data_by_location
+from .tools import (
+    tool_get_weather_by_coords, 
+    tool_get_lat_lon_from_browser, 
+    tool_get_date_time, 
+    tool_get_crop_data_by_location, 
+    tool_get_irrigation_data_by_location, 
+    tool_get_climate_data_by_location, 
+    tool_get_commodity_list, 
+    tool_get_geographies, 
+    tool_get_markets_for_commodity, 
+    tool_get_commodity_prices, 
+    tool_get_commodity_quantities, 
+    tool_get_commodity_prices_by_location, 
+    tool_get_commodity_price_by_name_and_location,
+    tool_get_commodity_price_by_location_and_name,
+    tool_intelligent_commodity_price_query
+)
 from ..config import get_logger
 from .ui.formatting import format_agricultural_data
 
@@ -104,6 +120,144 @@ def openrouter_tools_schema() -> List[Dict]:
                         "year": {"type": "integer", "description": "Specific year to query (optional)"}
                     },
                     "required": ["lat", "lon", "data_type"],
+                    "additionalProperties": False
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_commodity_list",
+                "description": "Get the list of all agricultural commodities available in the CEDA Agmarknet database.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": False
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_geographies",
+                "description": "Get the list of all states and districts available in the CEDA Agmarknet database.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": False
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_markets_for_commodity",
+                "description": "Get the list of markets for a given commodity, state and district.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "commodity_id": {"type": "integer", "description": "Commodity ID (required). Get from get_commodity_list."},
+                        "state_id": {"type": "integer", "description": "State ID (required). Get from get_geographies."},
+                        "district_id": {"type": "integer", "description": "District ID (required). Get from get_geographies."},
+                        "indicator": {"type": "string", "description": "Indicator type (required, must be 'price' or 'quantity')", "enum": ["price", "quantity"]}
+                    },
+                    "required": ["commodity_id", "state_id", "district_id", "indicator"],
+                    "additionalProperties": False
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_commodity_prices",
+                "description": "Get the prices for a commodity at the state, district or market level.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "commodity_id": {"type": "integer", "description": "Commodity ID (required)"},
+                        "state_id": {"type": "integer", "description": "State ID (required). Use 0 for all India level data or state level integer value obtained from get_geographies."},
+                        "district_id": {"type": "array", "items": {"type": "integer"}, "description": "Optional district IDs. If not provided, will fetch data at the state level."},
+                        "market_id": {"type": "array", "items": {"type": "integer"}, "description": "Optional market IDs. If not provided, will fetch data at the district level."},
+                        "from_date": {"type": "string", "format": "date", "description": "Start date (required, format: YYYY-MM-DD)"},
+                        "to_date": {"type": "string", "format": "date", "description": "End date (required, format: YYYY-MM-DD)"}
+                    },
+                    "required": ["commodity_id", "state_id", "from_date", "to_date"],
+                    "additionalProperties": False
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_commodity_quantities",
+                "description": "Get the quantities for a commodity at the state, district or market level.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "commodity_id": {"type": "integer", "description": "Commodity ID (required)"},
+                        "state_id": {"type": "integer", "description": "State ID (required). Use 0 for all India level data or state level integer value obtained from get_geographies."},
+                        "district_id": {"type": "array", "items": {"type": "integer"}, "description": "Optional district IDs. If not provided, will fetch data at the state level."},
+                        "market_id": {"type": "array", "items": {"type": "integer"}, "description": "Optional market IDs. If not provided, will fetch data at the district level."},
+                        "from_date": {"type": "string", "format": "date", "description": "Start date (required, format: YYYY-MM-DD)"},
+                        "to_date": {"type": "string", "format": "date", "description": "End date (required, format: YYYY-MM-DD)"}
+                    },
+                    "required": ["commodity_id", "state_id", "from_date", "to_date"],
+                    "additionalProperties": False
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_commodity_price_by_name_and_location",
+                "description": "Get commodity prices by commodity name and location names (state and district). This tool handles the full workflow of finding IDs and getting prices.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "commodity_name": {"type": "string", "description": "Name of the commodity (e.g., 'Cotton', 'Rice')"},
+                        "state_name": {"type": "string", "description": "Name of the state (e.g., 'Maharashtra', 'Andhra Pradesh')"},
+                        "district_name": {"type": "string", "description": "Name of the district (e.g., 'Nagpur', 'Anantapur')"},
+                        "from_date": {"type": "string", "format": "date", "description": "Start date (required, format: YYYY-MM-DD, default: 30 days ago)"},
+                        "to_date": {"type": "string", "format": "date", "description": "End date (required, format: YYYY-MM-DD, default: today)"}
+                    },
+                    "required": ["commodity_name", "state_name", "district_name"],
+                    "additionalProperties": False
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_commodity_price_by_location_and_name",
+                "description": "Get commodity prices by commodity name and coordinates. Uses reverse geocoding to determine state and district, then gets commodity prices.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "commodity_name": {"type": "string", "description": "Name of the commodity (e.g., 'Cotton', 'Rice')"},
+                        "lat": {"type": "number", "description": "Latitude in decimal degrees", "minimum": -90, "maximum": 90},
+                        "lon": {"type": "number", "description": "Longitude in decimal degrees", "minimum": -180, "maximum": 180},
+                        "from_date": {"type": "string", "format": "date", "description": "Start date (optional, format: YYYY-MM-DD, default: 30 days ago)"},
+                        "to_date": {"type": "string", "format": "date", "description": "End date (optional, format: YYYY-MM-DD, default: today)"}
+                    },
+                    "required": ["commodity_name", "lat", "lon"],
+                    "additionalProperties": False
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "intelligent_commodity_price_query",
+                "description": "Intelligent commodity price query that can handle natural language requests. Automatically extracts commodity name and location from user queries.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "User's natural language query about commodity prices (e.g., 'What is the price of cotton in Maharashtra?')"},
+                        "lat": {"type": "number", "description": "User's latitude (optional)", "minimum": -90, "maximum": 90},
+                        "lon": {"type": "number", "description": "User's longitude (optional)", "minimum": -180, "maximum": 180},
+                        "user_location": {"type": "string", "description": "User's location as text (optional, e.g., 'Nagpur, Maharashtra')"}
+                    },
+                    "required": ["query"],
                     "additionalProperties": False
                 }
             }
@@ -248,6 +402,173 @@ def handle_tool_calls(choice: Dict) -> List[Dict]:
                     else:
                         logger.debug(f"Getting {data_type} data for coordinates: {lat}, {lon}" + (f" for year {year}" if year else ""))
                         result = tool_get_climate_data_by_location(float(lat), float(lon), data_type, year)
+                        # Format the result for better display
+                        if isinstance(result, dict) and (result.get("success") or result.get("error")):
+                            formatted_result = format_agricultural_data(result)
+                            result = {"formatted_response": formatted_result, "raw_data": result}
+                        
+                elif name == "get_commodity_list":
+                    logger.debug("Getting commodity list")
+                    result = tool_get_commodity_list()
+                    
+                elif name == "get_geographies":
+                    logger.debug("Getting geographies")
+                    result = tool_get_geographies()
+                    
+                elif name == "get_markets_for_commodity":
+                    commodity_id = args.get("commodity_id")
+                    state_id = args.get("state_id")
+                    district_id = args.get("district_id")
+                    indicator = args.get("indicator", "price")
+                    
+                    if commodity_id is None or state_id is None or district_id is None:
+                        logger.error(f"Missing parameters for markets tool - commodity_id: {commodity_id}, state_id: {state_id}, district_id: {district_id}")
+                        result = {"error": "commodity_id, state_id, and district_id parameters are required"}
+                    else:
+                        logger.debug(f"Getting markets for commodity {commodity_id}, state {state_id}, district {district_id}")
+                        result = tool_get_markets_for_commodity(int(commodity_id), int(state_id), int(district_id), indicator)
+                        
+                elif name == "get_commodity_prices":
+                    commodity_id = args.get("commodity_id")
+                    state_id = args.get("state_id")
+                    district_ids = args.get("district_id")
+                    market_ids = args.get("market_id")
+                    from_date = args.get("from_date")
+                    to_date = args.get("to_date")
+                    
+                    if commodity_id is None or state_id is None or from_date is None or to_date is None:
+                        logger.error(f"Missing required parameters for commodity prices tool")
+                        result = {"error": "commodity_id, state_id, from_date, and to_date parameters are required"}
+                    else:
+                        logger.debug(f"Getting prices for commodity {commodity_id}")
+                        result = tool_get_commodity_prices(
+                            int(commodity_id), 
+                            int(state_id), 
+                            district_ids, 
+                            market_ids, 
+                            from_date, 
+                            to_date
+                        )
+                        # Format the result for better display
+                        if isinstance(result, dict) and (result.get("success") or result.get("error")):
+                            formatted_result = format_agricultural_data(result)
+                            result = {"formatted_response": formatted_result, "raw_data": result}
+                            
+                elif name == "get_commodity_quantities":
+                    commodity_id = args.get("commodity_id")
+                    state_id = args.get("state_id")
+                    district_ids = args.get("district_id")
+                    market_ids = args.get("market_id")
+                    from_date = args.get("from_date")
+                    to_date = args.get("to_date")
+                    
+                    if commodity_id is None or state_id is None or from_date is None or to_date is None:
+                        logger.error(f"Missing required parameters for commodity quantities tool")
+                        result = {"error": "commodity_id, state_id, from_date, and to_date parameters are required"}
+                    else:
+                        logger.debug(f"Getting quantities for commodity {commodity_id}")
+                        result = tool_get_commodity_quantities(
+                            int(commodity_id), 
+                            int(state_id), 
+                            district_ids, 
+                            market_ids, 
+                            from_date, 
+                            to_date
+                        )
+                        # Format the result for better display
+                        if isinstance(result, dict) and (result.get("success") or result.get("error")):
+                            formatted_result = format_agricultural_data(result)
+                            result = {"formatted_response": formatted_result, "raw_data": result}
+                            
+                elif name == "get_commodity_prices_by_location":
+                    lat = args.get("lat")
+                    lon = args.get("lon")
+                    commodity_name = args.get("commodity_name")
+                    from_date = args.get("from_date")
+                    to_date = args.get("to_date")
+                    
+                    if lat is None or lon is None or commodity_name is None or from_date is None or to_date is None:
+                        logger.error(f"Missing parameters for commodity prices by location tool")
+                        result = {"error": "lat, lon, commodity_name, from_date, and to_date parameters are required"}
+                    else:
+                        logger.debug(f"Getting prices for {commodity_name} near coordinates: {lat}, {lon}")
+                        result = tool_get_commodity_prices_by_location(
+                            float(lat), 
+                            float(lon), 
+                            commodity_name,
+                            from_date, 
+                            to_date
+                        )
+                        # Format the result for better display
+                        if isinstance(result, dict) and (result.get("success") or result.get("error")):
+                            formatted_result = format_agricultural_data(result)
+                            result = {"formatted_response": formatted_result, "raw_data": result}
+                            
+                elif name == "get_commodity_price_by_name_and_location":
+                    commodity_name = args.get("commodity_name")
+                    state_name = args.get("state_name")
+                    district_name = args.get("district_name")
+                    from_date = args.get("from_date", "2025-07-18")  # Default to 30 days ago
+                    to_date = args.get("to_date", "2025-08-18")      # Default to today
+                    
+                    if commodity_name is None or state_name is None or district_name is None:
+                        logger.error(f"Missing parameters for commodity price by name and location tool")
+                        result = {"error": "commodity_name, state_name, and district_name parameters are required"}
+                    else:
+                        logger.debug(f"Getting prices for {commodity_name} in {district_name}, {state_name}")
+                        result = tool_get_commodity_price_by_name_and_location(
+                            commodity_name,
+                            state_name,
+                            district_name,
+                            from_date,
+                            to_date
+                        )
+                        # Format the result for better display
+                        if isinstance(result, dict) and (result.get("success") or result.get("error")):
+                            formatted_result = format_agricultural_data(result)
+                            result = {"formatted_response": formatted_result, "raw_data": result}
+
+                elif name == "get_commodity_price_by_location_and_name":
+                    commodity_name = args.get("commodity_name")
+                    lat = args.get("lat")
+                    lon = args.get("lon")
+                    from_date = args.get("from_date", "2025-07-18")  # Default to 30 days ago
+                    to_date = args.get("to_date", "2025-08-18")      # Default to today
+                    
+                    if commodity_name is None or lat is None or lon is None:
+                        logger.error(f"Missing parameters for commodity price by location and name tool")
+                        result = {"error": "commodity_name, lat, and lon parameters are required"}
+                    else:
+                        logger.debug(f"Getting prices for {commodity_name} near coordinates {lat}, {lon}")
+                        result = tool_get_commodity_price_by_location_and_name(
+                            commodity_name,
+                            float(lat),
+                            float(lon),
+                            from_date,
+                            to_date
+                        )
+                        # Format the result for better display
+                        if isinstance(result, dict) and (result.get("success") or result.get("error")):
+                            formatted_result = format_agricultural_data(result)
+                            result = {"formatted_response": formatted_result, "raw_data": result}
+
+                elif name == "intelligent_commodity_price_query":
+                    query = args.get("query")
+                    lat = args.get("lat")
+                    lon = args.get("lon")
+                    user_location = args.get("user_location")
+                    
+                    if query is None:
+                        logger.error(f"Missing query parameter for intelligent commodity price query tool")
+                        result = {"error": "query parameter is required"}
+                    else:
+                        logger.debug(f"Processing intelligent commodity query: {query}")
+                        result = tool_intelligent_commodity_price_query(
+                            query,
+                            lat,
+                            lon,
+                            user_location
+                        )
                         # Format the result for better display
                         if isinstance(result, dict) and (result.get("success") or result.get("error")):
                             formatted_result = format_agricultural_data(result)
