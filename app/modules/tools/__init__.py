@@ -17,6 +17,13 @@ from .commodity_tool import (
     tool_get_commodity_price_by_location_and_name,
     tool_intelligent_commodity_price_query
 )
+from .soil_water_content_tool import (
+    tool_get_soil_water_content,
+    tool_create_swc_subscription,
+    tool_get_swc_statistics,
+    tool_get_swc_product_info,
+    tool_analyze_soil_conditions
+)
 
 # For backward compatibility, we'll also import the helper function
 from .location_tool import get_browser_location
