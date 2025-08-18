@@ -6,7 +6,7 @@ import json
 from openai import OpenAI
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
-from .tools import tool_get_weather_by_coords, tool_get_lat_lon_from_browser, tool_get_date_time
+from .tools import tool_get_weather_by_coords, tool_get_lat_lon_from_browser, tool_get_date_time, tool_get_crop_data_by_location, tool_get_irrigation_data_by_location, tool_get_climate_data_by_location
 from ..config import get_logger
 
 # Load environment variables
@@ -53,6 +53,58 @@ def openrouter_tools_schema() -> List[Dict]:
                 "name": "get_date_time",
                 "description": "Get the current date and time in the user's timezone.",
                 "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_crop_data_by_location",
+                "description": "Get crop production data for the nearest location within 200 kilometers based on latitude and longitude.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "lat": {"type": "number", "description": "Latitude in decimal degrees", "minimum": -90, "maximum": 90},
+                        "lon": {"type": "number", "description": "Longitude in decimal degrees", "minimum": -180, "maximum": 180},
+                        "year": {"type": "integer", "description": "Specific year to query (optional)"}
+                    },
+                    "required": ["lat", "lon"],
+                    "additionalProperties": False
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_irrigation_data_by_location",
+                "description": "Get irrigation source data for the nearest location within 200 kilometers based on latitude and longitude.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "lat": {"type": "number", "description": "Latitude in decimal degrees", "minimum": -90, "maximum": 90},
+                        "lon": {"type": "number", "description": "Longitude in decimal degrees", "minimum": -180, "maximum": 180},
+                        "year": {"type": "integer", "description": "Specific year to query (optional)"}
+                    },
+                    "required": ["lat", "lon"],
+                    "additionalProperties": False
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_climate_data_by_location",
+                "description": "Get climate data (temperature or precipitation) for the nearest location within 200 kilometers based on latitude and longitude.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "lat": {"type": "number", "description": "Latitude in decimal degrees", "minimum": -90, "maximum": 90},
+                        "lon": {"type": "number", "description": "Longitude in decimal degrees", "minimum": -180, "maximum": 180},
+                        "data_type": {"type": "string", "description": "Type of climate data ('temperature' or 'precipitation')", "enum": ["temperature", "precipitation"]},
+                        "year": {"type": "integer", "description": "Specific year to query (optional)"}
+                    },
+                    "required": ["lat", "lon", "data_type"],
+                    "additionalProperties": False
+                }
             }
         }
     ]
@@ -154,6 +206,40 @@ def handle_tool_calls(choice: Dict) -> List[Dict]:
                     logger.debug("Getting current date/time")
                     result = tool_get_date_time()
                     
+                elif name == "get_crop_data_by_location":
+                    lat = args.get("lat")
+                    lon = args.get("lon")
+                    year = args.get("year")
+                    if lat is None or lon is None:
+                        logger.error(f"Missing coordinates for crop data tool - lat: {lat}, lon: {lon}")
+                        result = {"error": "Both lat and lon parameters are required"}
+                    else:
+                        logger.debug(f"Getting crop data for coordinates: {lat}, {lon}" + (f" for year {year}" if year else ""))
+                        result = tool_get_crop_data_by_location(float(lat), float(lon), year)
+                        
+                elif name == "get_irrigation_data_by_location":
+                    lat = args.get("lat")
+                    lon = args.get("lon")
+                    year = args.get("year")
+                    if lat is None or lon is None:
+                        logger.error(f"Missing coordinates for irrigation data tool - lat: {lat}, lon: {lon}")
+                        result = {"error": "Both lat and lon parameters are required"}
+                    else:
+                        logger.debug(f"Getting irrigation data for coordinates: {lat}, {lon}" + (f" for year {year}" if year else ""))
+                        result = tool_get_irrigation_data_by_location(float(lat), float(lon), year)
+                        
+                elif name == "get_climate_data_by_location":
+                    lat = args.get("lat")
+                    lon = args.get("lon")
+                    data_type = args.get("data_type")
+                    year = args.get("year")
+                    if lat is None or lon is None or data_type is None:
+                        logger.error(f"Missing parameters for climate data tool - lat: {lat}, lon: {lon}, data_type: {data_type}")
+                        result = {"error": "Lat, lon, and data_type parameters are required"}
+                    else:
+                        logger.debug(f"Getting {data_type} data for coordinates: {lat}, {lon}" + (f" for year {year}" if year else ""))
+                        result = tool_get_climate_data_by_location(float(lat), float(lon), data_type, year)
+                        
                 else:
                     logger.error(f"Unknown tool function: {name}")
                     result = {"error": f"Unknown tool function: {name}"}

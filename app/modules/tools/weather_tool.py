@@ -5,6 +5,9 @@ import os
 import requests
 from typing import Dict
 from ...config import get_logger
+import dotenv
+
+dotenv.load_dotenv()
 
 # Initialize logger
 logger = get_logger(__name__)
