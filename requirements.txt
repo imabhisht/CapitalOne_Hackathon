@@ -4,3 +4,4 @@ python-dotenv
 openai
 streamlit-local-storage
 streamlit-js-eval
+pymongo
